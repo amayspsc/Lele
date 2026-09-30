@@ -1,12 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
 const DEFAULT_PRODUCTS = [
-  { id: 1, size: '3–4 cm', price: 180000, status: 'Tersedia', note: 'Cocok untuk pemula', accent: 'mint', sold: '1.000 ekor' },
-  { id: 2, size: '4–5 cm', price: 215000, status: 'Tersedia', note: 'Paling banyak dipesan', accent: 'orange', sold: '1.000 ekor', popular: true },
-  { id: 3, size: '5–6 cm', price: 260000, status: 'Pre-order', note: 'Lebih cepat dibesarkan', accent: 'blue', sold: '1.000 ekor' },
-  { id: 4, size: '7–8 cm', price: 340000, status: 'Habis', note: 'Stok masuk 04 Okt 2026', accent: 'violet', sold: '1.000 ekor' },
+  { id: 1, size: '3–4 cm', price: 180000, status: 'Tersedia', stock: 120, note: 'Cocok untuk pemula', accent: 'mint', sold: '1.000 ekor' },
+  { id: 2, size: '4–5 cm', price: 215000, status: 'Tersedia', stock: 86, note: 'Paling banyak dipesan', accent: 'orange', sold: '1.000 ekor', popular: true },
+  { id: 3, size: '5–6 cm', price: 260000, status: 'Pre-order', stock: 34, note: 'Lebih cepat dibesarkan', accent: 'blue', sold: '1.000 ekor' },
+  { id: 4, size: '7–8 cm', price: 340000, status: 'Habis', stock: 0, note: 'Stok masuk 04 Okt 2026', accent: 'violet', sold: '1.000 ekor' },
 ];
 
 const ORDER_ROWS = [
@@ -42,6 +42,8 @@ function Icon({ name, size = 20, stroke = 1.8 }) {
     menu: <><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></>,
     message: <><path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 8.7 8.7 0 0 1-4-.9L3 21l1.8-4.2A8.3 8.3 0 0 1 3 11.5 8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5Z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></>,
     package: <><path d="m21 8-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></>,
+    receipt: <><path d="M4 3h16v18l-4-2-4 2-4-2-4 2V3Z"/><path d="M8 8h8M8 12h8M8 16h4"/></>,
+    chart: <><path d="M3 3v18h18"/><path d="m8 14 4-4 4 3 5-7"/></>,
     phone: <><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.8 2.1Z"/></>,
     plus: <><path d="M12 5v14"/><path d="M5 12h14"/></>,
     search: <><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
@@ -191,41 +193,176 @@ function LoginModal({ onClose, onLogin }) {
   return <div className="modal-backdrop" onMouseDown={onClose}><div className="login-modal" onMouseDown={(e) => e.stopPropagation()}><button className="modal-close" onClick={onClose}><Icon name="close" size={18} /></button><div className="login-icon"><Icon name="lock" size={21} /></div><div className="section-kicker">Area terbatas <span></span></div><h2>Selamat datang,<br /><em>admin.</em></h2><p>Masuk untuk mengatur ketersediaan dan harga bibit di katalog.</p><form onSubmit={submit}><label>Email admin<input value="admin@lelepakabi.id" readOnly /></label><label>Kata sandi<div className="password-field"><input type="password" autoFocus value={password} onChange={(e) => { setPassword(e.target.value); setError(false); }} placeholder="Masukkan kata sandi" /><Icon name="lock" size={15} /></div></label>{error && <div className="login-error">Kata sandi belum tepat. Coba lagi.</div>}<button className="button button-dark full-button" type="submit">Masuk ke dashboard <Icon name="arrow" size={16} /></button></form><small className="demo-hint">Demo password: <b>lelepakabi</b></small></div></div>;
 }
 
-function AdminSidebar({ active, setActive, onLogout }) {
-  return <aside className="admin-sidebar"><div className="admin-brand"><Logo light /><span className="admin-tag">ADMIN</span></div><div className="admin-profile"><div className="profile-avatar">LP</div><div><b>Admin lelepakabi</b><span>Administrator</span></div><Icon name="chevron" size={15} /></div><div className="sidebar-section"><span className="sidebar-label">Workspace</span><button className={active === 'overview' ? 'active' : ''} onClick={() => setActive('overview')}><Icon name="dashboard" size={17} /> Ringkasan</button><button className={active === 'catalog' ? 'active' : ''} onClick={() => setActive('catalog')}><Icon name="package" size={17} /> Katalog bibit <span className="nav-count">4</span></button><button className={active === 'orders' ? 'active' : ''} onClick={() => setActive('orders')}><Icon name="list" size={17} /> Pesanan <span className="nav-count alert">3</span></button></div><div className="sidebar-section sidebar-bottom"><span className="sidebar-label">Lainnya</span><button><Icon name="settings" size={17} /> Pengaturan</button><button><Icon name="help" size={17} /> Bantuan</button></div><button className="logout-button" onClick={onLogout}><Icon name="logout" size={17} /> Keluar dari dashboard</button><div className="sidebar-version">lelepakabi v1.0 <span>•</span> Bogor</div></aside>;
+const TRANSACTION_STATUSES = ['Menunggu pembayaran', 'Dibayar', 'Diproses', 'Dikirim', 'Selesai', 'Dibatalkan'];
+const DEFAULT_TRANSACTIONS = [
+  { id: 'trx-1001', invoice: 'INV/LP/2026/001', date: '2026-09-29', customer: 'Andi Rahman', phone: '0812-3456-7890', size: '4–5 cm', quantity: 3, unitPrice: 215000, status: 'Menunggu pembayaran', payment: 'Transfer bank', stockDeducted: false },
+  { id: 'trx-1002', invoice: 'INV/LP/2026/002', date: '2026-09-28', customer: 'Dewi Sari', phone: '0813-4567-8901', size: '3–4 cm', quantity: 2, unitPrice: 180000, status: 'Dikirim', payment: 'QRIS', stockDeducted: false },
+  { id: 'trx-1003', invoice: 'INV/LP/2026/003', date: '2026-09-27', customer: 'Bambang Yulianto', phone: '0815-6789-0123', size: '5–6 cm', quantity: 5, unitPrice: 260000, status: 'Selesai', payment: 'Transfer bank', stockDeducted: true },
+];
+const DEFAULT_EXPENSES = [
+  { id: 'exp-1', date: '2026-09-29', description: 'Pakan dan vitamin bibit', category: 'Operasional', amount: 425000 },
+  { id: 'exp-2', date: '2026-09-26', description: 'Ongkos kirim pesanan', category: 'Pengiriman', amount: 180000 },
+  { id: 'exp-3', date: '2026-09-24', description: 'Perawatan kolam', category: 'Perawatan', amount: 350000 },
+];
+const orderTotal = (order) => (Number(order.quantity) || 0) * (Number(order.unitPrice) || 0);
+const isRevenueOrder = (order) => ['Dibayar', 'Diproses', 'Dikirim', 'Selesai'].includes(order.status);
+const formatDate = (value) => new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
+
+function AdminSidebar({ active, setActive, onLogout, pendingCount }) {
+  const items = [
+    ['overview', 'Ringkasan', 'dashboard'], ['transactions', 'Transaksi', 'list'], ['invoices', 'Invoice', 'receipt'],
+    ['finance', 'Keuangan', 'wallet'], ['expenses', 'Pengeluaran', 'chart'], ['stock', 'Stok & katalog', 'package'],
+  ];
+  return <aside className="admin-sidebar"><div className="admin-brand"><Logo light /><span className="admin-tag">ADMIN</span></div>
+    <div className="admin-profile"><div className="profile-avatar">LP</div><div><b>Admin lelepakabi</b><span>Administrator</span></div><Icon name="chevron" size={15} /></div>
+    <div className="sidebar-section"><span className="sidebar-label">Workspace</span>{items.map(([key, label, icon]) => <button key={key} className={active === key ? 'active' : ''} onClick={() => setActive(key)}><Icon name={icon} size={17} /> {label}{key === 'transactions' && pendingCount > 0 && <span className="nav-count alert">{pendingCount}</span>}</button>)}</div>
+    <div className="sidebar-section sidebar-bottom"><span className="sidebar-label">Toko</span><button onClick={onLogout}><Icon name="external" size={17} /> Lihat toko</button></div>
+    <button className="logout-button" onClick={onLogout}><Icon name="logout" size={17} /> Keluar dari dashboard</button><div className="sidebar-version">lelepakabi v1.0 <span>•</span> Bogor</div>
+  </aside>;
 }
 
 function MetricCard({ icon, label, value, trend, accent }) {
-  return <div className={`metric-card ${accent}`}><div className="metric-top"><span className="metric-icon"><Icon name={icon} size={18} /></span><span className="trend"><Icon name="arrowUp" size={12} /> {trend}</span></div><span className="metric-label">{label}</span><strong>{value}</strong><div className="metric-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>;
+  return <div className={`metric-card ${accent}`}><div className="metric-top"><span className="metric-icon"><Icon name={icon} size={18} /></span>{trend && <span className="trend"><Icon name="arrowUp" size={12} /> {trend}</span>}</div><span className="metric-label">{label}</span><strong>{value}</strong><div className="metric-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>;
+}
+
+function PageHeading({ eyebrow, title, description, action }) {
+  return <div className="page-heading"><div><span className="page-overline">{eyebrow}</span><h1>{title}</h1><p>{description}</p></div>{action}</div>;
+}
+
+function TransactionTable({ transactions, onStatusChange, onInvoice }) {
+  return <div className="dashboard-panel data-panel"><div className="table-scroll"><table className="admin-data-table transaction-table"><thead><tr><th>PELANGGAN</th><th>TANGGAL / INVOICE</th><th>ITEM</th><th>TOTAL</th><th>STATUS</th><th></th></tr></thead><tbody>{transactions.map((order) => <tr key={order.id}>
+    <td><b>{order.customer}</b><small>{order.phone}</small></td><td><b>{formatDate(order.date)}</b><small>{order.invoice}</small></td><td><b>Bibit {order.size}</b><small>{order.quantity} kantong · {order.payment}</small></td><td><b>Rp {formatPrice(orderTotal(order))}</b></td>
+    <td>{onStatusChange ? <select aria-label={`Status ${order.invoice}`} className={`order-status-select status-${order.status.toLowerCase().replaceAll(' ', '-')}`} value={order.status} onChange={(e) => onStatusChange(order.id, e.target.value)}>{TRANSACTION_STATUSES.map((status) => <option key={status}>{status}</option>)}</select> : <span className={`invoice-status status-${order.status.toLowerCase().replaceAll(' ', '-')}`}>{order.status}</span>}</td><td><button className="small-action" onClick={() => onInvoice(order)}>Invoice</button></td>
+  </tr>)}</tbody></table>{transactions.length === 0 && <div className="empty-state">Tidak ada transaksi yang cocok.</div>}</div></div>;
 }
 
 function StockTable({ products, draftProducts, setDraftProducts, onSave }) {
-  const update = (id, key, value) => setDraftProducts(draftProducts.map((p) => p.id === id ? { ...p, [key]: key === 'price' ? Number(value) : value } : p));
-  return <div className="dashboard-panel stock-panel"><div className="panel-head"><div><h3>Harga & ketersediaan</h3><p>Atur katalog yang tampil di halaman utama.</p></div><span className="last-updated"><span className="green-dot"></span> Tersimpan otomatis</span></div><div className="table-scroll"><table className="stock-table"><thead><tr><th>UKURAN BIBIT</th><th>HARGA / 1.000 EKOR</th><th>STATUS STOK</th><th>TERAKHIR DIUBAH</th><th></th></tr></thead><tbody>{draftProducts.map((product) => <tr key={product.id}><td><div className="table-product"><div className={`table-thumb ${product.accent}`}><span>{product.size.split('–')[0]}</span></div><div><b>Bibit lele {product.size}</b><small>{product.note}</small></div></div></td><td><div className="price-input"><span>Rp</span><input type="number" min="0" step="5000" value={product.price} onChange={(e) => update(product.id, 'price', e.target.value)} /></div></td><td><select className={`status-select ${product.status === 'Tersedia' ? 'green' : product.status === 'Pre-order' ? 'yellow' : 'red'}`} value={product.status} onChange={(e) => update(product.id, 'status', e.target.value)}><option>Tersedia</option><option>Pre-order</option><option>Habis</option></select></td><td><span className="changed-time">Hari ini, 09:24</span></td><td><button className="row-edit" onClick={() => document.querySelector('.stock-panel')?.scrollIntoView({ behavior: 'smooth' })}><Icon name="edit" size={15} /></button></td></tr>)}</tbody></table></div><div className="panel-footer"><span><Icon name="checkCircle" size={16} /> Perubahan akan langsung terlihat di katalog publik.</span><button className="button button-dark save-button" onClick={onSave}>Simpan perubahan <Icon name="arrow" size={15} /></button></div></div>;
+  const update = (id, key, value) => setDraftProducts(draftProducts.map((product) => product.id === id ? { ...product, [key]: key === 'price' || key === 'stock' ? Math.max(0, Number(value) || 0) : value } : product));
+  return <div className="dashboard-panel stock-panel"><div className="panel-head"><div><h3>Harga & ketersediaan</h3><p>Kelola jumlah stok kantong, harga, dan status pada katalog publik.</p></div><span className="last-updated"><span className="green-dot"></span> Data tersimpan di perangkat ini</span></div><div className="table-scroll"><table className="stock-table"><thead><tr><th>UKURAN BIBIT</th><th>HARGA / 1.000 EKOR</th><th>STOK (KANTONG)</th><th>STATUS KATALOG</th></tr></thead><tbody>{draftProducts.map((product) => <tr key={product.id}><td><div className="table-product"><div className={`table-thumb ${product.accent}`}><span>{product.size.split('–')[0]}</span></div><div><b>Bibit lele {product.size}</b><small>{product.note}</small></div></div></td><td><div className="price-input"><span>Rp</span><input aria-label={`Harga bibit ${product.size}`} type="number" min="0" step="5000" value={product.price} onChange={(e) => update(product.id, 'price', e.target.value)} /></div></td><td><input className="stock-number-input" aria-label={`Stok bibit ${product.size}`} type="number" min="0" value={product.stock ?? 0} onChange={(e) => update(product.id, 'stock', e.target.value)} /></td><td><select className={`status-select ${product.status === 'Tersedia' ? 'green' : product.status === 'Pre-order' ? 'yellow' : 'red'}`} value={product.status} onChange={(e) => update(product.id, 'status', e.target.value)}><option>Tersedia</option><option>Pre-order</option><option>Habis</option></select></td></tr>)}</tbody></table></div><div className="panel-footer"><span><Icon name="checkCircle" size={16} /> Stok dan katalog publik diperbarui setelah disimpan.</span><button className="button button-dark save-button" onClick={onSave}>Simpan perubahan <Icon name="arrow" size={15} /></button></div></div>;
 }
 
-function OrderTable() {
-  return <div className="dashboard-panel orders-panel"><div className="panel-head"><div><h3>Pesanan terbaru</h3><p>Aktivitas pesanan masuk minggu ini.</p></div><button className="text-button">Lihat semua <Icon name="arrow" size={14} /></button></div><div className="orders-list">{ORDER_ROWS.map((order) => <div className="order-row" key={order.name}><span className={`order-avatar ${order.color}`}>{order.initials}</span><div className="order-customer"><b>{order.name}</b><span>{order.detail}</span></div><strong className="order-total">{order.total}</strong><span className={`order-status ${order.color}`}>{order.status}</span><button className="more-button">•••</button></div>)}</div></div>;
+function OrderModal({ products, onClose, onSave }) {
+  const [form, setForm] = useState({ customer: '', phone: '', size: products[0]?.size || '', quantity: 1, status: 'Menunggu pembayaran', payment: 'Transfer bank' });
+  const selected = products.find((product) => product.size === form.size) || products[0];
+  const submit = (event) => {
+    event.preventDefault();
+    if (!form.customer.trim() || !form.phone.trim() || !selected || Number(form.quantity) < 1) return;
+    const today = new Date();
+    const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const id = `trx-${Date.now()}`;
+    onSave({ id, invoice: `INV/LP/${today.getFullYear()}/${String(Date.now()).slice(-5)}`, date, customer: form.customer.trim(), phone: form.phone.trim(), size: selected.size, quantity: Number(form.quantity), unitPrice: selected.price, status: form.status, payment: form.payment, stockDeducted: false });
+  };
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="admin-dialog" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><Icon name="close" size={18} /></button><span className="page-overline">TRANSAKSI BARU</span><h2>Catat pesanan</h2><p>Masukkan detail transaksi pelanggan.</p><form className="admin-form" onSubmit={submit}><label>Nama pelanggan<input required value={form.customer} onChange={(e) => setForm({ ...form, customer: e.target.value })} placeholder="Nama lengkap" /></label><label>Nomor WhatsApp<input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="08xx xxxx xxxx" /></label><div className="form-row"><label>Ukuran bibit<select value={form.size} onChange={(e) => setForm({ ...form, size: e.target.value })}>{products.map((product) => <option key={product.id}>{product.size}</option>)}</select></label><label>Jumlah kantong<input required type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></label></div><div className="form-row"><label>Status<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{TRANSACTION_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label><label>Metode pembayaran<select value={form.payment} onChange={(e) => setForm({ ...form, payment: e.target.value })}><option>Transfer bank</option><option>QRIS</option><option>Tunai</option></select></label></div><div className="form-total"><span>Harga per kantong</span><b>Rp {formatPrice(selected?.price)}</b></div><button className="button button-dark full-button" type="submit">Simpan transaksi <Icon name="arrow" size={15} /></button></form></div></div>;
 }
 
-function AdminDashboard({ products, onUpdate, onLogout }) {
+function ExpenseModal({ onClose, onSave }) {
+  const today = new Date();
+  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const [form, setForm] = useState({ description: '', category: 'Operasional', amount: '', date });
+  const submit = (event) => { event.preventDefault(); if (!form.description.trim() || Number(form.amount) <= 0) return; onSave({ ...form, id: `exp-${Date.now()}`, amount: Number(form.amount), description: form.description.trim() }); };
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="admin-dialog" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><Icon name="close" size={18} /></button><span className="page-overline">PENCATATAN BIAYA</span><h2>Tambah pengeluaran</h2><p>Catat biaya operasional agar laporan keuangan selalu akurat.</p><form className="admin-form" onSubmit={submit}><label>Deskripsi<input required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Contoh: pakan bibit" /></label><div className="form-row"><label>Kategori<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}><option>Operasional</option><option>Pengiriman</option><option>Perawatan</option><option>Perlengkapan</option><option>Lainnya</option></select></label><label>Tanggal<input required type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label></div><label>Jumlah (Rp)<input required min="1" type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" /></label><button className="button button-dark full-button" type="submit">Simpan pengeluaran <Icon name="arrow" size={15} /></button></form></div></div>;
+}
+
+function InvoiceModal({ order, onClose }) {
+  if (!order) return null;
+  return <div className="modal-backdrop invoice-backdrop" onMouseDown={onClose}><div className="invoice-modal" onMouseDown={(event) => event.stopPropagation()}><div className="invoice-modal-actions"><span>Pratinjau invoice</span><div><button className="button button-outline" onClick={() => window.print()}>Cetak / Simpan PDF</button><button className="modal-close inline-close" onClick={onClose}><Icon name="close" size={18} /></button></div></div><article className="invoice-paper"><div className="invoice-brand"><Logo /><span>INVOICE</span></div><div className="invoice-meta"><div><small>DITAGIHKAN KEPADA</small><b>{order.customer}</b><span>{order.phone}</span></div><div><small>NOMOR INVOICE</small><b>{order.invoice}</b><span>Tanggal {formatDate(order.date)}</span></div></div><div className="invoice-divider"></div><table><thead><tr><th>DESKRIPSI</th><th>QTY</th><th>HARGA</th><th>JUMLAH</th></tr></thead><tbody><tr><td>Bibit lele ukuran {order.size}<small>1 kantong berisi ± 1.000 ekor</small></td><td>{order.quantity}</td><td>Rp {formatPrice(order.unitPrice)}</td><td>Rp {formatPrice(orderTotal(order))}</td></tr></tbody></table><div className="invoice-total"><span>Total pembayaran</span><b>Rp {formatPrice(orderTotal(order))}</b></div><div className="invoice-payment"><div><small>METODE PEMBAYARAN</small><b>{order.payment}</b></div><div><small>STATUS</small><b>{order.status}</b></div></div><p className="invoice-thanks">Terima kasih telah memilih lelepakabi.<br />Bibit sehat untuk panen yang lebih dekat.</p></article></div></div>;
+}
+
+function TransactionsPage({ transactions, onStatusChange, onInvoice, onNew }) {
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('Semua status');
+  const filtered = transactions.filter((order) => `${order.customer} ${order.invoice} ${order.phone}`.toLowerCase().includes(search.toLowerCase()) && (filter === 'Semua status' || order.status === filter));
+  return <><PageHeading eyebrow="PENJUALAN" title="Transaksi" description="Catat pesanan, perbarui status, dan lihat detail pembelian." action={<button className="button button-dark" onClick={onNew}><Icon name="plus" size={16} /> Transaksi baru</button>} /><div className="filter-bar"><label className="search-box"><Icon name="search" size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari pelanggan atau invoice" /></label><select value={filter} onChange={(e) => setFilter(e.target.value)}><option>Semua status</option>{TRANSACTION_STATUSES.map((status) => <option key={status}>{status}</option>)}</select><span>{filtered.length} transaksi</span></div><TransactionTable transactions={filtered} onStatusChange={onStatusChange} onInvoice={onInvoice} /></>;
+}
+
+function InvoicesPage({ transactions, onInvoice }) {
+  return <><PageHeading eyebrow="DOKUMEN PENJUALAN" title="Invoice" description="Pilih transaksi untuk pratinjau, cetak, atau simpan invoice sebagai PDF." /><div className="invoice-card-grid">{transactions.map((order) => <article className="invoice-list-card" key={order.id}><div className="invoice-card-top"><span className="invoice-card-icon"><Icon name="receipt" size={19} /></span><span className={`invoice-status status-${order.status.toLowerCase().replaceAll(' ', '-')}`}>{order.status}</span></div><small>{order.invoice}</small><h3>{order.customer}</h3><p>{formatDate(order.date)} <span>·</span> Bibit {order.size}, {order.quantity} kantong</p><div><b>Rp {formatPrice(orderTotal(order))}</b><button className="small-action" onClick={() => onInvoice(order)}>Buka invoice <Icon name="arrow" size={13} /></button></div></article>)}</div>{transactions.length === 0 && <div className="empty-state">Invoice akan muncul setelah transaksi dicatat.</div>}</>;
+}
+
+function FinancePage({ transactions, expenses }) {
+  const income = transactions.filter(isRevenueOrder).reduce((sum, order) => sum + orderTotal(order), 0);
+  const costs = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  const profit = income - costs;
+  const completeCount = transactions.filter((order) => order.status === 'Selesai').length;
+  return <><PageHeading eyebrow="LAPORAN USAHA" title="Keuangan" description="Pantau pemasukan, pengeluaran, dan estimasi laba dari data transaksi." /><div className="metrics-grid finance-metrics"><MetricCard icon="arrowUp" label="Total pemasukan" value={`Rp ${formatShortPrice(income)}`} accent="lime" /><MetricCard icon="package" label="Total pengeluaran" value={`Rp ${formatShortPrice(costs)}`} accent="orange" /><MetricCard icon="wallet" label="Estimasi laba" value={`Rp ${formatShortPrice(profit)}`} accent="blue" /><MetricCard icon="checkCircle" label="Transaksi selesai" value={String(completeCount)} accent="purple" /></div><div className="finance-layout"><section className="dashboard-panel finance-summary"><div className="panel-head"><div><h3>Ringkasan arus kas</h3><p>Akumulasi seluruh catatan transaksi dan biaya.</p></div></div><div className="cashflow-row"><span><i className="cash-in-dot"></i>Pemasukan transaksi</span><b>Rp {formatPrice(income)}</b></div><div className="cashflow-row"><span><i className="cash-out-dot"></i>Pengeluaran tercatat</span><b>− Rp {formatPrice(costs)}</b></div><div className="cashflow-total"><span>Estimasi laba bersih</span><b>Rp {formatPrice(profit)}</b></div></section><section className="finance-note"><span className="tips-icon"><Icon name="help" size={17} /></span><span className="page-overline">CATATAN</span><h3>Angka mengikuti data yang dicatat</h3><p>Pemasukan dihitung dari transaksi yang sudah dibayar; transaksi menunggu pembayaran dan yang dibatalkan tidak dihitung. Catat pengeluaran secara rutin untuk mendapat estimasi laba yang lebih akurat.</p></section></div><p className="data-disclaimer">Data keuangan demo tersimpan secara lokal di browser ini.</p></>;
+}
+
+function ExpensesPage({ expenses, onNew, onDelete }) {
+  const total = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+  return <><PageHeading eyebrow="BIAYA USAHA" title="Pengeluaran" description="Catat biaya operasional budidaya dan pengiriman." action={<button className="button button-dark" onClick={onNew}><Icon name="plus" size={16} /> Tambah biaya</button>} /><div className="expense-total-card"><span>Total pengeluaran tercatat</span><b>Rp {formatPrice(total)}</b><small>{expenses.length} catatan biaya</small></div><div className="dashboard-panel data-panel expense-panel"><div className="table-scroll"><table className="admin-data-table"><thead><tr><th>TANGGAL</th><th>DESKRIPSI</th><th>KATEGORI</th><th>JUMLAH</th><th></th></tr></thead><tbody>{[...expenses].sort((a, b) => b.date.localeCompare(a.date)).map((expense) => <tr key={expense.id}><td><b>{formatDate(expense.date)}</b></td><td><b>{expense.description}</b></td><td><span className="category-pill">{expense.category}</span></td><td><b>Rp {formatPrice(expense.amount)}</b></td><td><button className="delete-action" aria-label={`Hapus ${expense.description}`} onClick={() => onDelete(expense.id)}>Hapus</button></td></tr>)}</tbody></table>{expenses.length === 0 && <div className="empty-state">Belum ada pengeluaran yang dicatat.</div>}</div></div></>;
+}
+
+function OverviewPage({ transactions, expenses, products, setActive, onInvoice }) {
+  const revenue = transactions.filter(isRevenueOrder).reduce((sum, order) => sum + orderTotal(order), 0);
+  const pending = transactions.filter((order) => ['Menunggu pembayaran', 'Dibayar'].includes(order.status)).length;
+  const unitsSold = transactions.filter((order) => order.status !== 'Dibatalkan').reduce((sum, order) => sum + Number(order.quantity || 0) * 1000, 0);
+  const activeStock = products.reduce((sum, product) => sum + Number(product.stock || 0), 0);
+  return <><PageHeading eyebrow="RABU, 30 SEPTEMBER 2026" title="Selamat pagi, admin." description="Ringkasan usaha lelepakabi hari ini." action={<span className="date-chip"><Icon name="dashboard" size={15} /> 30 Sep 2026</span>} /><div className="metrics-grid"><MetricCard icon="wallet" label="Pemasukan tercatat" value={`Rp ${formatShortPrice(revenue)}`} trend={`${transactions.length} transaksi`} accent="lime" /><MetricCard icon="package" label="Bibit dalam pesanan" value={formatPrice(unitsSold)} trend="ekor" accent="blue" /><MetricCard icon="list" label="Perlu ditindaklanjuti" value={String(pending)} trend="pesanan" accent="purple" /><MetricCard icon="chart" label="Pengeluaran" value={`Rp ${formatShortPrice(expenses.reduce((sum, item) => sum + Number(item.amount), 0))}`} trend={`${activeStock} kantong`} accent="orange" /></div><div className="overview-grid admin-overview-grid"><div className="dashboard-panel overview-panel"><div className="panel-head"><div><h3>Transaksi terbaru</h3><p>Pilih invoice untuk meninjau detail transaksi.</p></div><button className="text-button" onClick={() => setActive('transactions')}>Lihat semua <Icon name="arrow" size={14} /></button></div><TransactionTable transactions={transactions.slice(0, 3)} onStatusChange={null} onInvoice={onInvoice} /></div><div className="quick-admin-actions"><button onClick={() => setActive('stock')}><Icon name="package" size={19} /><span><b>Kelola stok</b><small>Atur jumlah dan status bibit</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('finance')}><Icon name="wallet" size={19} /><span><b>Lihat keuangan</b><small>Pemasukan dan estimasi laba</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('expenses')}><Icon name="chart" size={19} /><span><b>Catat pengeluaran</b><small>Perbarui biaya operasional</small></span><Icon name="arrow" size={15} /></button></div></div></>;
+}
+
+function AdminDashboard({ products, onUpdateProducts, transactions, onUpdateTransactions, expenses, onUpdateExpenses, onLogout }) {
   const [active, setActive] = useState('overview');
   const [draftProducts, setDraftProducts] = useState(products);
-  const [saved, setSaved] = useState(false);
+  const [showOrder, setShowOrder] = useState(false);
+  const [showExpense, setShowExpense] = useState(false);
+  const [invoiceOrder, setInvoiceOrder] = useState(null);
+  const [toast, setToast] = useState('');
   useEffect(() => setDraftProducts(products), [products]);
-  const save = () => { onUpdate(draftProducts); setSaved(true); window.setTimeout(() => setSaved(false), 3000); };
-  const available = products.filter((p) => p.status === 'Tersedia').length;
-  return <div className="admin-layout"><AdminSidebar active={active} setActive={setActive} onLogout={onLogout} /><main className="admin-main"><div className="admin-topbar"><div className="breadcrumb"><span>Workspace</span><Icon name="chevron" size={13} /><b>{active === 'overview' ? 'Ringkasan' : active === 'catalog' ? 'Katalog bibit' : 'Pesanan'}</b></div><div className="admin-top-actions"><span className="public-status"><i></i> Toko online</span><button className="view-store" onClick={onLogout}><Icon name="external" size={15} /> Lihat toko</button><div className="top-avatar">LP</div></div></div><div className="admin-content">{active === 'orders' ? <><div className="page-heading"><div><span className="page-overline">AKTIVITAS</span><h1>Pesanan</h1><p>Kelola dan pantau pesanan masuk dari pelanggan.</p></div><button className="button button-dark"><Icon name="plus" size={16} /> Pesanan baru</button></div><OrderTable /></> : <><div className="page-heading"><div><span className="page-overline">RABU, 30 SEPTEMBER 2026</span><h1>Selamat pagi, admin.</h1><p>Ini ringkasan toko lelepakabi hari ini.</p></div><div className="date-chip"><Icon name="dashboard" size={15} /> 30 Sep 2026</div></div><div className="metrics-grid"><MetricCard icon="wallet" label="Penjualan bulan ini" value="Rp 18,4 jt" trend="12,8%" accent="lime" /><MetricCard icon="package" label="Bibit terjual" value="84.500" trend="8,2%" accent="blue" /><MetricCard icon="user" label="Pelanggan baru" value="126" trend="16,4%" accent="purple" /><MetricCard icon="message" label="Pesan masuk" value="38" trend="4,6%" accent="orange" /></div>{active === 'catalog' ? <div className="catalog-admin-heading"><div><h2>Kelola katalog bibit</h2><p>Perbarui harga dan status stok kapan saja.</p></div><button className="button button-outline" onClick={() => setDraftProducts(products)}><Icon name="arrow" size={14} /> Sinkronkan data</button></div> : <div className="overview-grid"><div className="dashboard-panel chart-panel"><div className="panel-head"><div><h3>Performa penjualan</h3><p>Ringkasan pendapatan 30 hari terakhir</p></div><select><option>30 hari terakhir</option><option>7 hari terakhir</option></select></div><div className="chart-wrap"><div className="chart-y"><span>8 jt</span><span>6 jt</span><span>4 jt</span><span>2 jt</span><span>0</span></div><div className="chart-area"><div className="chart-grid-lines"><i></i><i></i><i></i><i></i><i></i></div><svg viewBox="0 0 620 180" preserveAspectRatio="none"><defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#a8d85f" stopOpacity=".3"/><stop offset="1" stopColor="#a8d85f" stopOpacity="0"/></linearGradient></defs><path d="M0 151 C30 145 36 118 72 128 S105 133 130 109 S166 116 190 101 S217 63 249 77 S286 106 310 95 S342 91 365 107 S391 108 412 80 S456 55 477 72 S502 62 530 41 S573 55 620 17 V180 H0Z" fill="url(#chartFill)"/><path d="M0 151 C30 145 36 118 72 128 S105 133 130 109 S166 116 190 101 S217 63 249 77 S286 106 310 95 S342 91 365 107 S391 108 412 80 S456 55 477 72 S502 62 530 41 S573 55 620 17" fill="none" stroke="#7daf45" strokeWidth="3" vectorEffect="non-scaling-stroke"/><circle cx="530" cy="41" r="5" fill="#fff" stroke="#7daf45" strokeWidth="3"/></svg><div className="chart-x"><span>01 Sep</span><span>08 Sep</span><span>15 Sep</span><span>22 Sep</span><span>30 Sep</span></div></div></div></div><div className="dashboard-panel quick-panel"><div className="panel-head"><div><h3>Kondisi stok</h3><p>Status bibit saat ini</p></div><button className="mini-icon-button" onClick={() => setActive('catalog')}><Icon name="arrow" size={15} /></button></div><div className="stock-donut"><div className="donut"><div><strong>{available}</strong><span>aktif</span></div></div><div className="donut-legend"><span><i className="dot-green"></i>Tersedia <b>{available}</b></span><span><i className="dot-yellow"></i>Pre-order <b>{products.filter((p) => p.status === 'Pre-order').length}</b></span><span><i className="dot-red"></i>Habis <b>{products.filter((p) => p.status === 'Habis').length}</b></span></div></div><button className="quick-link" onClick={() => setActive('catalog')}>Kelola ketersediaan <Icon name="arrow" size={14} /></button></div></div>}{active === 'overview' && <div className="overview-orders"><OrderTable /><div className="tips-card"><div className="tips-icon"><Icon name="star" size={17} /></div><span className="page-overline">TIP HARI INI</span><h3>Ukuran 4–5 cm paling diminati</h3><p>Jaga stok ukuran favorit agar tidak kehilangan momentum pesanan.</p><button onClick={() => setActive('catalog')}>Cek katalog <Icon name="arrow" size={14} /></button></div></div>}{active === 'catalog' && <StockTable products={products} draftProducts={draftProducts} setDraftProducts={setDraftProducts} onSave={save} />}</>}</div>{saved && <div className="save-toast"><Icon name="checkCircle" size={18} /> Perubahan katalog berhasil disimpan</div>}</main></div>;
+  const notify = (message) => { setToast(message); window.setTimeout(() => setToast(''), 2600); };
+  const saveProducts = () => { onUpdateProducts(draftProducts); notify('Data stok dan katalog berhasil disimpan'); };
+  const addTransaction = (order) => {
+    if (order.status === 'Selesai') {
+      onUpdateProducts(products.map((product) => product.size === order.size ? { ...product, stock: Math.max(0, Number(product.stock || 0) - order.quantity), status: Number(product.stock || 0) - order.quantity <= 0 ? 'Habis' : product.status } : product));
+      order.stockDeducted = true;
+    }
+    onUpdateTransactions([order, ...transactions]); setShowOrder(false); notify('Transaksi berhasil dicatat');
+  };
+  const updateStatus = (id, status) => {
+    const order = transactions.find((item) => item.id === id);
+    let nextProducts = products;
+    if (status === 'Selesai' && order && !order.stockDeducted) {
+      nextProducts = products.map((product) => product.size === order.size ? { ...product, stock: Math.max(0, Number(product.stock || 0) - Number(order.quantity || 0)), status: Number(product.stock || 0) - Number(order.quantity || 0) <= 0 ? 'Habis' : product.status } : product);
+      onUpdateProducts(nextProducts);
+    }
+    onUpdateTransactions(transactions.map((item) => item.id === id ? { ...item, status, stockDeducted: item.stockDeducted || status === 'Selesai' } : item));
+    notify(status === 'Selesai' && order && !order.stockDeducted ? 'Status diperbarui; stok otomatis dikurangi' : 'Status transaksi diperbarui');
+  };
+  const addExpense = (expense) => { onUpdateExpenses([expense, ...expenses]); setShowExpense(false); notify('Pengeluaran berhasil dicatat'); };
+  const pageNames = { overview: 'Ringkasan', transactions: 'Transaksi', invoices: 'Invoice', finance: 'Keuangan', expenses: 'Pengeluaran', stock: 'Stok & katalog' };
+  const pendingCount = transactions.filter((order) => ['Menunggu pembayaran', 'Dibayar'].includes(order.status)).length;
+  return <div className="admin-layout"><AdminSidebar active={active} setActive={setActive} onLogout={onLogout} pendingCount={pendingCount} /><main className="admin-main"><div className="admin-topbar"><div className="breadcrumb"><span>Workspace</span><Icon name="chevron" size={13} /><b>{pageNames[active]}</b></div><div className="admin-top-actions"><span className="public-status"><i></i> Toko online</span><button className="view-store" onClick={onLogout}><Icon name="external" size={15} /> Lihat toko</button><div className="top-avatar">LP</div></div></div><div className="admin-content">
+    {active === 'overview' && <OverviewPage transactions={transactions} expenses={expenses} products={products} setActive={setActive} onInvoice={setInvoiceOrder} />}
+    {active === 'transactions' && <TransactionsPage transactions={transactions} onStatusChange={updateStatus} onInvoice={setInvoiceOrder} onNew={() => setShowOrder(true)} />}
+    {active === 'invoices' && <InvoicesPage transactions={transactions} onInvoice={setInvoiceOrder} />}
+    {active === 'finance' && <FinancePage transactions={transactions} expenses={expenses} />}
+    {active === 'expenses' && <ExpensesPage expenses={expenses} onNew={() => setShowExpense(true)} onDelete={(id) => { onUpdateExpenses(expenses.filter((expense) => expense.id !== id)); notify('Pengeluaran dihapus'); }} />}
+    {active === 'stock' && <><div className="stock-page-heading"><PageHeading eyebrow="INVENTARIS" title="Stok & katalog" description="Pantau stok bibit dan atur harga atau status yang tampil di toko." /><button className="button button-outline" onClick={() => setDraftProducts(products)}><Icon name="arrow" size={14} /> Batalkan perubahan</button></div><StockTable products={products} draftProducts={draftProducts} setDraftProducts={setDraftProducts} onSave={saveProducts} /><div className="stock-hint"><Icon name="help" size={15} /> Stok otomatis berkurang ketika status transaksi diubah menjadi Selesai.</div></>}
+  </div>{toast && <div className="save-toast"><Icon name="checkCircle" size={18} /> {toast}</div>}
+    {showOrder && <OrderModal products={products} onClose={() => setShowOrder(false)} onSave={addTransaction} />}{showExpense && <ExpenseModal onClose={() => setShowExpense(false)} onSave={addExpense} />}{invoiceOrder && <InvoiceModal order={invoiceOrder} onClose={() => setInvoiceOrder(null)} />}
+  </main></div>;
+}
+
+function readStored(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key));
+    return value ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function App() {
   const [view, setView] = useState('store');
   const [showLogin, setShowLogin] = useState(false);
-  const [products, setProducts] = useState(() => { try { return JSON.parse(localStorage.getItem('lelepakabi-products')) || DEFAULT_PRODUCTS; } catch { return DEFAULT_PRODUCTS; } });
+  const [products, setProducts] = useState(() => readStored('lelepakabi-products', DEFAULT_PRODUCTS).map((product, index) => ({ ...DEFAULT_PRODUCTS[index], ...product, stock: Number(product.stock ?? DEFAULT_PRODUCTS[index]?.stock ?? 0) })));
+  const [transactions, setTransactions] = useState(() => readStored('lelepakabi-transactions', DEFAULT_TRANSACTIONS));
+  const [expenses, setExpenses] = useState(() => readStored('lelepakabi-expenses', DEFAULT_EXPENSES));
   useEffect(() => { localStorage.setItem('lelepakabi-products', JSON.stringify(products)); }, [products]);
+  useEffect(() => { localStorage.setItem('lelepakabi-transactions', JSON.stringify(transactions)); }, [transactions]);
+  useEffect(() => { localStorage.setItem('lelepakabi-expenses', JSON.stringify(expenses)); }, [expenses]);
   const openAdmin = () => setShowLogin(true);
   const order = (product) => window.open(`https://wa.me/6281234567890?text=${encodeURIComponent(`Halo lelepakabi, saya ingin pesan bibit lele ukuran ${product.size}. Mohon info ketersediaan dan pengirimannya ya.`)}`, '_blank', 'noopener,noreferrer');
-  return view === 'admin' ? <AdminDashboard products={products} onUpdate={setProducts} onLogout={() => setView('store')} /> : <div className="storefront"><Header onAdmin={openAdmin} /><main><Hero /><Catalog products={products} onOrder={order} /><Story /><HowToOrder /></main><Footer onAdmin={openAdmin} />{showLogin && <LoginModal onClose={() => setShowLogin(false)} onLogin={() => { setShowLogin(false); setView('admin'); }} />}</div>;
+  return view === 'admin' ? <AdminDashboard products={products} onUpdateProducts={setProducts} transactions={transactions} onUpdateTransactions={setTransactions} expenses={expenses} onUpdateExpenses={setExpenses} onLogout={() => setView('store')} /> : <div className="storefront"><Header onAdmin={openAdmin} /><main><Hero /><Catalog products={products} onOrder={order} /><Story /><HowToOrder /></main><Footer onAdmin={openAdmin} />{showLogin && <LoginModal onClose={() => setShowLogin(false)} onLogin={() => { setShowLogin(false); setView('admin'); }} />}</div>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
