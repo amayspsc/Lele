@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - arena/01a0f2ed-lele
+      - main
   workflow_dispatch:
 
 permissions:
