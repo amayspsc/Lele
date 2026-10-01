@@ -266,3 +266,18 @@ h1 em, h2 em { font-family: Georgia, serif; font-weight: 400; color: #8bb358; le
   .invoice-payment { gap: 20px; }
   .invoice-modal-actions > span { display: none; }
 }
+
+/* Navigation polish: preserve an obvious way back from every admin section. */
+.mobile-store-link { display: none !important; }
+.breadcrumb-back { align-items: center; background: transparent; border: 0; color: #75964f; display: inline-flex; font-size: 9px; font-weight: 800; gap: 6px; padding: 5px 0; }
+.breadcrumb-back svg { transform: rotate(180deg); }
+.breadcrumb-back:hover { color: var(--ink); }
+@media (max-width: 580px) {
+  .admin-top-actions .view-store { border-left: 0; display: flex; font-size: 0; gap: 0; padding-left: 0; }
+  .admin-top-actions .view-store svg { height: 18px; width: 18px; }
+  .breadcrumb { gap: 6px; min-width: 0; }
+  .breadcrumb-back { flex: 0 0 auto; font-size: 8px; }
+  .breadcrumb b { max-width: 108px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-store-link { display: flex !important; }
+  .admin-sidebar .sidebar-section button.mobile-store-link { color: #c2e58a; }
+}
