@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 
+const STORE_ADDRESS = 'Jl. Kali Buaran, RT.10/RW.7, Penggilingan, Kec. Cakung, Kota Jakarta Timur, DKI Jakarta 13940';
+const STORE_MAP_URL = 'https://www.google.com/maps/search/?api=1&query=Bibit+Lele+pak+abi%2C+Jl.+Kali+Buaran%2C+Penggilingan%2C+Cakung%2C+Jakarta+Timur';
+const STORE_WA_URL = 'https://wa.me/6282123040643';
+
 const DEFAULT_PRODUCTS = [
   { id: 1, size: '3–4 cm', price: 180000, status: 'Tersedia', stock: 120, note: 'Cocok untuk pemula', accent: 'mint', sold: '1.000 ekor' },
   { id: 2, size: '4–5 cm', price: 215000, status: 'Tersedia', stock: 86, note: 'Paling banyak dipesan', accent: 'orange', sold: '1.000 ekor', popular: true },
@@ -34,6 +38,8 @@ function Icon({ name, size = 20, stroke = 1.8 }) {
     lock: <><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></>,
     logout: <><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 19V5a2 2 0 0 0-2-2h-6"/></>,
     menu: <><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></>,
+    mapPin: <><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></>,
+    clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
     message: <><path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 8.7 8.7 0 0 1-4-.9L3 21l1.8-4.2A8.3 8.3 0 0 1 3 11.5 8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5Z"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></>,
     package: <><path d="m21 8-9-5-9 5 9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></>,
     receipt: <><path d="M4 3h16v18l-4-2-4 2-4-2-4 2V3Z"/><path d="M8 8h8M8 12h8M8 16h4"/></>,
@@ -62,7 +68,7 @@ function StatusPill({ status, small = false }) {
   return <span className={`status-pill ${className} ${small ? 'small' : ''}`}><i></i>{status}</span>;
 }
 
-function Header({ onAdmin }) {
+function Header() {
   const [open, setOpen] = useState(false);
   const goTo = (id) => {
     setOpen(false);
@@ -75,10 +81,10 @@ function Header({ onAdmin }) {
         <button onClick={() => goTo('produk')}>Katalog bibit</button>
         <button onClick={() => goTo('cerita')}>Tentang kami</button>
         <button onClick={() => goTo('cara-pesan')}>Cara pesan</button>
+        <button onClick={() => goTo('lokasi')}>Lokasi</button>
       </nav>
       <div className="header-actions">
-        <button className="admin-link" onClick={onAdmin}><Icon name="settings" size={16} /> <span>Admin</span></button>
-        <a className="header-cta" href="https://wa.me/6281234567890?text=Halo%20lelepakabi%2C%20saya%20ingin%20pesan%20bibit%20lele." target="_blank" rel="noreferrer">Pesan bibit <Icon name="arrow" size={16} /></a>
+        <a className="header-cta" href="https://wa.me/6282123040643?text=Halo%20lelepakabi%2C%20saya%20ingin%20pesan%20bibit%20lele." target="_blank" rel="noreferrer">Pesan bibit <Icon name="arrow" size={16} /></a>
       </div>
       <button className="menu-button" aria-label="Buka menu" onClick={() => setOpen(!open)}><Icon name={open ? 'close' : 'menu'} size={23} /></button>
     </div>
@@ -111,7 +117,7 @@ function FishIllustration() {
   </div>;
 }
 
-function Hero({ onAdmin }) {
+function Hero() {
   return <>
     <section className="hero">
       <div className="container hero-grid">
@@ -121,7 +127,7 @@ function Hero({ onAdmin }) {
           <p className="hero-text">Bibit lele sehat, seragam, dan terawat untuk bantu usaha budidaya kamu tumbuh lebih pasti.</p>
           <div className="hero-buttons">
             <a className="button button-primary" href="#produk">Lihat katalog <Icon name="arrow" size={17} /></a>
-            <a className="button button-ghost" href="https://wa.me/6281234567890?text=Halo%20lelepakabi%2C%20boleh%20konsultasi%20tentang%20bibit%20lele%3F" target="_blank" rel="noreferrer"><Icon name="message" size={17} /> Konsultasi gratis</a>
+            <a className="button button-ghost" href="https://wa.me/6282123040643?text=Halo%20lelepakabi%2C%20boleh%20konsultasi%20tentang%20bibit%20lele%3F" target="_blank" rel="noreferrer"><Icon name="message" size={17} /> Konsultasi gratis</a>
           </div>
           <div className="hero-proof">
             <div className="avatar-stack"><span className="av av-one">AR</span><span className="av av-two">DS</span><span className="av av-three">BY</span><span className="av-count">+</span></div>
@@ -159,32 +165,75 @@ function Catalog({ products, onOrder }) {
     <div className="container">
       <div className="section-heading catalog-heading"><div><div className="section-kicker">Katalog bibit <span></span></div><h2>Ukuran yang pas,<br /><em>hasil yang jelas.</em></h2></div><div className="heading-side"><p>Semua bibit dihitung per 1.000 ekor dan sudah melalui proses sortir agar lebih seragam saat ditebar.</p><div className="stock-summary"><span className="stock-live"></span> {available} ukuran tersedia hari ini</div></div></div>
       <div className="products-grid">{products.map((product) => <ProductCard key={product.id} product={product} onOrder={onOrder} />)}</div>
-      <div className="catalog-bottom"><div className="mini-rule"></div><p>Butuh jumlah besar atau ukuran khusus?</p><a href="https://wa.me/6281234567890?text=Halo%20lelepakabi%2C%20saya%20ingin%20konsultasi%20jumlah%20besar." target="_blank" rel="noreferrer">Bicarakan dengan kami <Icon name="arrow" size={15} /></a></div>
+      <div className="catalog-bottom"><div className="mini-rule"></div><p>Butuh jumlah besar atau ukuran khusus?</p><a href="https://wa.me/6282123040643?text=Halo%20lelepakabi%2C%20saya%20ingin%20konsultasi%20jumlah%20besar." target="_blank" rel="noreferrer">Bicarakan dengan kami <Icon name="arrow" size={15} /></a></div>
+    </div>
+  </section>;
+}
+
+function LocationSection() {
+  return <section className="location-section" id="lokasi">
+    <div className="container location-grid">
+      <div className="location-copy">
+        <div className="section-kicker">Mampir ke tempat kami <span></span></div>
+        <h2>Temukan bibit<br /><em>langsung dari Cakung.</em></h2>
+        <p>Datang untuk melihat bibit dan konsultasi langsung. Sebaiknya chat dulu sebelum berkunjung agar kami bisa menyiapkan pesananmu.</p>
+        <div className="location-info">
+          <div className="location-info-icon"><Icon name="mapPin" size={18} /></div>
+          <div><small>ALAMAT KAMI</small><b>{STORE_ADDRESS}</b></div>
+        </div>
+        <div className="location-info">
+          <div className="location-info-icon"><Icon name="clock" size={18} /></div>
+          <div><small>JAM BUKA</small><b>Setiap hari · 07.00–23.00 WIB</b></div>
+        </div>
+        <div className="location-actions">
+          <a className="button button-dark" href={STORE_MAP_URL} target="_blank" rel="noreferrer">Petunjuk arah <Icon name="arrow" size={16} /></a>
+          <a className="location-wa" href={`${STORE_WA_URL}?text=${encodeURIComponent('Halo Pak Abi, saya mau tanya lokasi dan ketersediaan bibit lele.')}`} target="_blank" rel="noreferrer"><Icon name="message" size={15} /> Chat sebelum datang</a>
+        </div>
+      </div>
+      <a className="location-map-card" href={STORE_MAP_URL} target="_blank" rel="noreferrer" aria-label="Buka lokasi Bibit Lele Pak Abi di Google Maps">
+        <div className="map-grid-lines"><i></i><i></i><i></i><i></i><i></i></div>
+        <div className="map-road road-one"></div><div className="map-road road-two"></div><div className="map-road road-three"></div>
+        <span className="map-neighborhood neighborhood-one">PENGGILINGAN</span><span className="map-neighborhood neighborhood-two">KALI BUARAN</span>
+        <span className="map-pin"><Icon name="mapPin" size={25} /></span>
+        <span className="map-label"><b>Bibit Lele pak abi</b><small>Cakung · Jakarta Timur</small></span>
+        <span className="map-open-link">Lihat peta <Icon name="external" size={13} /></span>
+      </a>
     </div>
   </section>;
 }
 
 function Story() {
   return <section className="story-section" id="cerita"><div className="container story-grid">
-    <div className="story-visual"><div className="story-image"><div className="image-noise"></div><div className="pond-shape shape-one"></div><div className="pond-shape shape-two"></div><div className="pond-fish">🐟</div><span className="image-label">DESA · BOGOR<br /><small>EST. 2018</small></span></div><div className="experience-card"><strong>8</strong><span>tahun merawat<br />bibit lele</span></div></div>
-    <div className="story-copy"><div className="section-kicker">Kenapa lelepakabi <span></span></div><h2>Bukan cuma jual bibit.<br /><em>Kami ikut tumbuh.</em></h2><p>Berawal dari kolam kecil di Bogor, kami percaya budidaya yang baik selalu dimulai dari bibit yang diperlakukan dengan baik.</p><p>Setiap bibit melewati pemantauan air, pakan, dan sortir harian. Karena kami ingin kamu menerima lebih dari sekadar ikan—tapi awal yang baik untuk panenmu.</p><div className="story-signature"><span className="signature-mark">lp</span><div><b>Tim lelepakabi</b><small>Dirawat dengan hati, dikirim dengan pasti.</small></div></div></div>
+    <div className="story-visual"><div className="story-image"><div className="image-noise"></div><div className="pond-shape shape-one"></div><div className="pond-shape shape-two"></div><div className="pond-fish">🐟</div><span className="image-label">CAKUNG · JAKARTA TIMUR<br /><small>EST. 2018</small></span></div><div className="experience-card"><strong>8</strong><span>tahun merawat<br />bibit lele</span></div></div>
+    <div className="story-copy"><div className="section-kicker">Kenapa lelepakabi <span></span></div><h2>Bukan cuma jual bibit.<br /><em>Kami ikut tumbuh.</em></h2><p>Berawal dari budidaya sederhana di Cakung, Jakarta Timur, kami percaya hasil yang baik selalu dimulai dari bibit yang dirawat dengan baik.</p><p>Setiap bibit melewati pemantauan air, pakan, dan sortir harian. Karena kami ingin kamu menerima lebih dari sekadar ikan—tapi awal yang baik untuk panenmu.</p><div className="story-signature"><span className="signature-mark">lp</span><div><b>Tim lelepakabi</b><small>Dirawat dengan hati, dikirim dengan pasti.</small></div></div></div>
   </div></section>;
 }
 
 function HowToOrder() {
   const steps = [{ no: '01', title: 'Pilih ukuran', text: 'Sesuaikan ukuran bibit dengan target dan kolam kamu.' }, { no: '02', title: 'Chat kami', text: 'Klik pesan, lalu ceritakan kebutuhan budidayamu.' }, { no: '03', title: 'Bibit berangkat', text: 'Kami sortir dan kemas aman sebelum dikirim.' }];
-  return <section className="how-section" id="cara-pesan"><div className="container"><div className="how-head"><div><div className="section-kicker">Semudah itu <span></span></div><h2>Dari chat ke kolam,<br /><em>tanpa ribet.</em></h2></div><a className="button button-dark" href="https://wa.me/6281234567890?text=Halo%20lelepakabi%2C%20saya%20mau%20pesan%20bibit%20lele." target="_blank" rel="noreferrer">Mulai pesan <Icon name="arrow" size={16} /></a></div><div className="steps-grid">{steps.map((step, i) => <div className="step" key={step.no}><div className="step-top"><span>{step.no}</span>{i < 2 && <div className="step-line"></div>}</div><h3>{step.title}</h3><p>{step.text}</p></div>)}</div></div></section>;
+  return <section className="how-section" id="cara-pesan"><div className="container"><div className="how-head"><div><div className="section-kicker">Semudah itu <span></span></div><h2>Dari chat ke kolam,<br /><em>tanpa ribet.</em></h2></div><a className="button button-dark" href="https://wa.me/6282123040643?text=Halo%20lelepakabi%2C%20saya%20mau%20pesan%20bibit%20lele." target="_blank" rel="noreferrer">Mulai pesan <Icon name="arrow" size={16} /></a></div><div className="steps-grid">{steps.map((step, i) => <div className="step" key={step.no}><div className="step-top"><span>{step.no}</span>{i < 2 && <div className="step-line"></div>}</div><h3>{step.title}</h3><p>{step.text}</p></div>)}</div></div></section>;
 }
 
-function Footer({ onAdmin }) {
-  return <footer className="site-footer"><div className="container"><div className="footer-main"><div><Logo light /><p>Bibit sehat untuk<br />panen yang lebih dekat.</p></div><div className="footer-links"><div><b>Jelajahi</b><button onClick={() => document.getElementById('produk')?.scrollIntoView({ behavior: 'smooth' })}>Katalog bibit</button><button onClick={() => document.getElementById('cerita')?.scrollIntoView({ behavior: 'smooth' })}>Tentang kami</button></div><div><b>Hubungi</b><a href="https://wa.me/6281234567890" target="_blank" rel="noreferrer">WhatsApp</a><a href="mailto:halo@lelepakabi.id">halo@lelepakabi.id</a></div><div><b>Lokasi</b><span>Bogor, Jawa Barat</span><span>Senin–Sabtu · 08.00–17.00</span></div></div></div><div className="footer-bottom"><span>© 2026 lelepakabi. Dibuat untuk pembudidaya.</span><button onClick={onAdmin}><Icon name="lock" size={13} /> Area admin</button><span>Instagram · TikTok</span></div></div></footer>;
+function Footer() {
+  return <footer className="site-footer"><div className="container"><div className="footer-main"><div><Logo light /><p>Bibit sehat untuk<br />panen yang lebih dekat.</p></div><div className="footer-links"><div><b>Jelajahi</b><button onClick={() => document.getElementById('produk')?.scrollIntoView({ behavior: 'smooth' })}>Katalog bibit</button><button onClick={() => document.getElementById('cerita')?.scrollIntoView({ behavior: 'smooth' })}>Tentang kami</button><button onClick={() => document.getElementById('lokasi')?.scrollIntoView({ behavior: 'smooth' })}>Lokasi</button></div><div><b>Hubungi</b><a href={STORE_WA_URL} target="_blank" rel="noreferrer">WhatsApp · +62 821-2304-0643</a><a href="mailto:halo@lelepakabi.id">halo@lelepakabi.id</a></div><div><b>Lokasi</b><span>Cakung, Jakarta Timur</span><span>Setiap hari · 07.00–23.00 WIB</span></div></div></div><div className="footer-bottom"><span>© 2026 lelepakabi. Dibuat untuk pembudidaya.</span><a href={STORE_MAP_URL} target="_blank" rel="noreferrer">Penggilingan · Jakarta Timur</a><span>Instagram · TikTok</span></div></div></footer>;
 }
 
-function LoginModal({ onClose, onLogin }) {
+function AdminLoginPage({ onLogin, onBack }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
-  const submit = (e) => { e.preventDefault(); if (password === 'lelepakabi') onLogin(); else setError(true); };
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="login-modal" onMouseDown={(e) => e.stopPropagation()}><button className="modal-close" onClick={onClose}><Icon name="close" size={18} /></button><div className="login-icon"><Icon name="lock" size={21} /></div><div className="section-kicker">Area terbatas <span></span></div><h2>Selamat datang,<br /><em>admin.</em></h2><p>Masuk untuk mengatur ketersediaan dan harga bibit di katalog.</p><form onSubmit={submit}><label>Email admin<input value="admin@lelepakabi.id" readOnly /></label><label>Kata sandi<div className="password-field"><input type="password" autoFocus value={password} onChange={(e) => { setPassword(e.target.value); setError(false); }} placeholder="Masukkan kata sandi" /><Icon name="lock" size={15} /></div></label>{error && <div className="login-error">Kata sandi belum tepat. Coba lagi.</div>}<button className="button button-dark full-button" type="submit">Masuk ke dashboard <Icon name="arrow" size={16} /></button></form><small className="demo-hint">Demo password: <b>lelepakabi</b></small></div></div>;
+  const submit = (event) => {
+    event.preventDefault();
+    if (password === 'lelepakabi') onLogin();
+    else setError(true);
+  };
+  return <main className="admin-login-page">
+    <header className="admin-login-header"><button className="brand-button" onClick={onBack} aria-label="Kembali ke toko"><Logo /></button><span className="admin-login-badge"><Icon name="lock" size={14} /> ADMIN</span></header>
+    <div className="admin-login-layout">
+      <section className="admin-login-intro"><span className="eyebrow"><span className="pulse-dot"></span> Ruang kerja lelepakabi</span><h1>Kelola usaha,<br /><em>lebih terarah.</em></h1><p>Masuk untuk mengatur transaksi, stok bibit, invoice, dan catatan usaha.</p><div className="login-location-note"><Icon name="mapPin" size={16} /> Penggilingan · Jakarta Timur</div></section>
+      <section className="admin-login-card"><div className="login-icon"><Icon name="lock" size={21} /></div><div className="section-kicker">Akses administrator <span></span></div><h2>Selamat datang,<br /><em>admin.</em></h2><p>Gunakan kata sandi administrator untuk melanjutkan.</p><form onSubmit={submit}><label>Email admin<input value="admin@lelepakabi.id" readOnly /></label><label>Kata sandi<div className="password-field"><input type="password" autoFocus value={password} onChange={(event) => { setPassword(event.target.value); setError(false); }} placeholder="Masukkan kata sandi" autoComplete="current-password" /><Icon name="lock" size={15} /></div></label>{error && <div className="login-error" role="alert">Kata sandi belum tepat. Coba lagi.</div>}<button className="button button-dark full-button" type="submit">Masuk ke dashboard <Icon name="arrow" size={16} /></button></form><button className="login-back-link" onClick={onBack}>Kembali ke halaman toko</button></section>
+    </div>
+    <footer className="admin-login-footer">Akses internal · lelepakabi</footer>
+  </main>;
 }
 
 const TRANSACTION_STATUSES = ['Menunggu pembayaran', 'Dibayar', 'Diproses', 'Dikirim', 'Selesai', 'Dibatalkan'];
@@ -202,16 +251,16 @@ const orderTotal = (order) => (Number(order.quantity) || 0) * (Number(order.unit
 const isRevenueOrder = (order) => ['Dibayar', 'Diproses', 'Dikirim', 'Selesai'].includes(order.status);
 const formatDate = (value) => new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
 
-function AdminSidebar({ active, setActive, onLogout, pendingCount }) {
+function AdminSidebar({ active, setActive, onLogout, onGoStore, pendingCount }) {
   const items = [
     ['overview', 'Ringkasan', 'dashboard'], ['transactions', 'Transaksi', 'list'], ['invoices', 'Invoice', 'receipt'],
     ['finance', 'Keuangan', 'wallet'], ['expenses', 'Pengeluaran', 'chart'], ['stock', 'Stok & katalog', 'package'], ['store', 'Toko', 'external'],
   ];
   return <aside className="admin-sidebar"><div className="admin-brand"><Logo light /><span className="admin-tag">ADMIN</span></div>
     <div className="admin-profile"><div className="profile-avatar">LP</div><div><b>Admin lelepakabi</b><span>Administrator</span></div><Icon name="chevron" size={15} /></div>
-    <div className="sidebar-section"><span className="sidebar-label">Workspace</span>{items.map(([key, label, icon]) => <button key={key} className={`${active === key ? 'active' : ''} ${key === 'store' ? 'mobile-store-link' : ''}`} onClick={() => key === 'store' ? onLogout() : setActive(key)} aria-label={key === 'store' ? 'Kembali ke toko' : label}><Icon name={icon} size={17} /> {label}{key === 'transactions' && pendingCount > 0 && <span className="nav-count alert">{pendingCount}</span>}</button>)}</div>
-    <div className="sidebar-section sidebar-bottom"><span className="sidebar-label">Toko</span><button onClick={onLogout}><Icon name="external" size={17} /> Lihat toko</button></div>
-    <button className="logout-button" onClick={onLogout}><Icon name="logout" size={17} /> Keluar dari dashboard</button><div className="sidebar-version">lelepakabi v1.0 <span>•</span> Bogor</div>
+    <div className="sidebar-section"><span className="sidebar-label">Workspace</span>{items.map(([key, label, icon]) => <button key={key} className={`${active === key ? 'active' : ''} ${key === 'store' ? 'mobile-store-link' : ''}`} onClick={() => key === 'store' ? onGoStore() : setActive(key)} aria-label={key === 'store' ? 'Kembali ke toko' : label}><Icon name={icon} size={17} /> {label}{key === 'transactions' && pendingCount > 0 && <span className="nav-count alert">{pendingCount}</span>}</button>)}</div>
+    <div className="sidebar-section sidebar-bottom"><span className="sidebar-label">Toko</span><button onClick={onGoStore}><Icon name="external" size={17} /> Lihat toko</button></div>
+    <button className="logout-button" onClick={onLogout}><Icon name="logout" size={17} /> Keluar dari dashboard</button><div className="sidebar-version">lelepakabi v1.0 <span>•</span> Jakarta Timur</div>
   </aside>;
 }
 
@@ -297,7 +346,7 @@ function OverviewPage({ transactions, expenses, products, setActive, onInvoice }
   return <><PageHeading eyebrow={todayLabel} title="Selamat pagi, admin." description="Ringkasan usaha lelepakabi hari ini." action={<span className="date-chip"><Icon name="dashboard" size={15} /> {shortToday}</span>} /><div className="metrics-grid"><MetricCard icon="wallet" label="Pemasukan tercatat" value={`Rp ${formatShortPrice(revenue)}`} trend={`${transactions.length} transaksi`} accent="lime" /><MetricCard icon="package" label="Bibit dalam pesanan" value={formatPrice(unitsSold)} trend="ekor" accent="blue" /><MetricCard icon="list" label="Perlu ditindaklanjuti" value={String(pending)} trend="pesanan" accent="purple" /><MetricCard icon="chart" label="Pengeluaran" value={`Rp ${formatShortPrice(expenses.reduce((sum, item) => sum + Number(item.amount), 0))}`} trend={`${activeStock} kantong`} accent="orange" /></div><div className="overview-grid admin-overview-grid"><div className="dashboard-panel overview-panel"><div className="panel-head"><div><h3>Transaksi terbaru</h3><p>Pilih invoice untuk meninjau detail transaksi.</p></div><button className="text-button" onClick={() => setActive('transactions')}>Lihat semua <Icon name="arrow" size={14} /></button></div><TransactionTable transactions={transactions.slice(0, 3)} onStatusChange={null} onInvoice={onInvoice} /></div><div className="quick-admin-actions"><button onClick={() => setActive('stock')}><Icon name="package" size={19} /><span><b>Kelola stok</b><small>Atur jumlah dan status bibit</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('finance')}><Icon name="wallet" size={19} /><span><b>Lihat keuangan</b><small>Pemasukan dan estimasi laba</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('expenses')}><Icon name="chart" size={19} /><span><b>Catat pengeluaran</b><small>Perbarui biaya operasional</small></span><Icon name="arrow" size={15} /></button></div></div></>;
 }
 
-function AdminDashboard({ products, onUpdateProducts, transactions, onUpdateTransactions, expenses, onUpdateExpenses, onLogout }) {
+function AdminDashboard({ products, onUpdateProducts, transactions, onUpdateTransactions, expenses, onUpdateExpenses, onLogout, onGoStore }) {
   const [active, setActive] = useState('overview');
   const [pageHistory, setPageHistory] = useState([]);
   const navigate = (next) => { if (next === active) return; setPageHistory((history) => [...history, active]); setActive(next); };
@@ -330,7 +379,7 @@ function AdminDashboard({ products, onUpdateProducts, transactions, onUpdateTran
   const addExpense = (expense) => { onUpdateExpenses([expense, ...expenses]); setShowExpense(false); notify('Pengeluaran berhasil dicatat'); };
   const pageNames = { overview: 'Ringkasan', transactions: 'Transaksi', invoices: 'Invoice', finance: 'Keuangan', expenses: 'Pengeluaran', stock: 'Stok & katalog' };
   const pendingCount = transactions.filter((order) => ['Menunggu pembayaran', 'Dibayar'].includes(order.status)).length;
-  return <div className="admin-layout"><AdminSidebar active={active} setActive={navigate} onLogout={onLogout} pendingCount={pendingCount} /><main className="admin-main"><div className="admin-topbar"><div className="breadcrumb"><button className="breadcrumb-back" onClick={goBack} aria-label="Kembali ke menu sebelumnya"><Icon name="arrow" size={14} /><span>Kembali</span></button><Icon name="chevron" size={13} /><b>{pageNames[active]}</b></div><div className="admin-top-actions"><span className="public-status"><i></i> Toko online</span><button className="view-store" onClick={onLogout}><Icon name="external" size={15} /> Lihat toko</button><div className="top-avatar">LP</div></div></div><div className="admin-content">
+  return <div className="admin-layout"><AdminSidebar active={active} setActive={navigate} onLogout={onLogout} onGoStore={onGoStore} pendingCount={pendingCount} /><main className="admin-main"><div className="admin-topbar"><div className="breadcrumb"><button className="breadcrumb-back" onClick={goBack} aria-label="Kembali ke menu sebelumnya"><Icon name="arrow" size={14} /><span>Kembali</span></button><Icon name="chevron" size={13} /><b>{pageNames[active]}</b></div><div className="admin-top-actions"><span className="public-status"><i></i> Toko online</span><button className="view-store" onClick={onGoStore}><Icon name="external" size={15} /> Lihat toko</button><div className="top-avatar">LP</div></div></div><div className="admin-content">
     {active === 'overview' && <OverviewPage transactions={transactions} expenses={expenses} products={products} setActive={navigate} onInvoice={setInvoiceOrder} />}
     {active === 'transactions' && <TransactionsPage transactions={transactions} onStatusChange={updateStatus} onInvoice={setInvoiceOrder} onNew={() => setShowOrder(true)} />}
     {active === 'invoices' && <InvoicesPage transactions={transactions} onInvoice={setInvoiceOrder} />}
@@ -351,18 +400,67 @@ function readStored(key, fallback) {
   }
 }
 
+const ADMIN_SESSION_KEY = 'lelepakabi-admin-session';
+const ADMIN_ROUTE_SEGMENT = '/adminlele';
+
+function getSiteBase(pathname) {
+  const cleanPath = pathname.replace(/\/+$/, '') || '/';
+  if (cleanPath.endsWith(ADMIN_ROUTE_SEGMENT)) return cleanPath.slice(0, -ADMIN_ROUTE_SEGMENT.length);
+  return cleanPath === '/' ? '' : cleanPath;
+}
+
+function getInitialRoute() {
+  const currentUrl = new URL(window.location.href);
+  if (currentUrl.searchParams.get('adminlele') === '1') {
+    const base = getSiteBase(currentUrl.pathname);
+    const adminPath = `${base}${ADMIN_ROUTE_SEGMENT}`;
+    window.history.replaceState({}, '', adminPath);
+    return adminPath;
+  }
+  return currentUrl.pathname;
+}
+
 function App() {
-  const [view, setView] = useState('store');
-  const [showLogin, setShowLogin] = useState(false);
+  const [routePath, setRoutePath] = useState(getInitialRoute);
+  const [adminSession, setAdminSession] = useState(() => localStorage.getItem(ADMIN_SESSION_KEY) === 'active');
   const [products, setProducts] = useState(() => readStored('lelepakabi-products', DEFAULT_PRODUCTS).map((product, index) => ({ ...DEFAULT_PRODUCTS[index], ...product, stock: Number(product.stock ?? DEFAULT_PRODUCTS[index]?.stock ?? 0) })));
   const [transactions, setTransactions] = useState(() => readStored('lelepakabi-transactions', DEFAULT_TRANSACTIONS));
   const [expenses, setExpenses] = useState(() => readStored('lelepakabi-expenses', DEFAULT_EXPENSES));
   useEffect(() => { localStorage.setItem('lelepakabi-products', JSON.stringify(products)); }, [products]);
   useEffect(() => { localStorage.setItem('lelepakabi-transactions', JSON.stringify(transactions)); }, [transactions]);
   useEffect(() => { localStorage.setItem('lelepakabi-expenses', JSON.stringify(expenses)); }, [expenses]);
-  const openAdmin = () => setShowLogin(true);
-  const order = (product) => window.open(`https://wa.me/6281234567890?text=${encodeURIComponent(`Halo lelepakabi, saya ingin pesan bibit lele ukuran ${product.size}. Mohon info ketersediaan dan pengirimannya ya.`)}`, '_blank', 'noopener,noreferrer');
-  return view === 'admin' ? <AdminDashboard products={products} onUpdateProducts={setProducts} transactions={transactions} onUpdateTransactions={setTransactions} expenses={expenses} onUpdateExpenses={setExpenses} onLogout={() => setView('store')} /> : <div className="storefront"><Header onAdmin={openAdmin} /><main><Hero /><Catalog products={products} onOrder={order} /><Story /><HowToOrder /></main><Footer onAdmin={openAdmin} />{showLogin && <LoginModal onClose={() => setShowLogin(false)} onLogin={() => { setShowLogin(false); setView('admin'); }} />}</div>;
+  useEffect(() => {
+    const handlePopState = () => setRoutePath(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const siteBase = getSiteBase(routePath);
+  const isAdminRoute = routePath.replace(/\/+$/, '').endsWith(ADMIN_ROUTE_SEGMENT);
+  const navigate = (path) => {
+    window.history.pushState({}, '', path);
+    setRoutePath(window.location.pathname);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const goToStore = () => navigate(siteBase ? `${siteBase}/` : '/');
+  const login = () => {
+    localStorage.setItem(ADMIN_SESSION_KEY, 'active');
+    setAdminSession(true);
+  };
+  const logout = () => {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+    setAdminSession(false);
+    goToStore();
+  };
+  const order = (product) => window.open(`${STORE_WA_URL}?text=${encodeURIComponent(`Halo lelepakabi, saya ingin pesan bibit lele ukuran ${product.size}. Mohon info ketersediaan dan pengirimannya ya.`)}`, '_blank', 'noopener,noreferrer');
+
+  if (isAdminRoute) {
+    return adminSession
+      ? <AdminDashboard products={products} onUpdateProducts={setProducts} transactions={transactions} onUpdateTransactions={setTransactions} expenses={expenses} onUpdateExpenses={setExpenses} onLogout={logout} onGoStore={goToStore} />
+      : <AdminLoginPage onLogin={login} onBack={goToStore} />;
+  }
+
+  return <div className="storefront"><Header /><main><Hero /><Catalog products={products} onOrder={order} /><LocationSection /><Story /><HowToOrder /></main><Footer /></div>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
