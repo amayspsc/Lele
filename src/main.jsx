@@ -29,12 +29,7 @@ const getStockStatus = (product) => {
   return STOCK_STATUSES.includes(savedStatus) ? savedStatus : 'Tersedia';
 };
 const stockStatusClass = (status) => status === 'Tersedia' ? 'available' : status === 'Pre-order' ? 'preorder' : status === 'Stok menipis' ? 'lowstock' : 'soldout';
-const deductProductStock = (product, bags) => {
-  const stock = Math.max(0, Number(product.stock || 0) - Number(bags || 0));
-  const currentStatus = getStockStatus(product);
-  const status = ['Tersedia', 'Stok menipis'].includes(currentStatus) ? stock <= 0 ? 'Tidak tersedia' : stock <= LOW_STOCK_THRESHOLD ? 'Stok menipis' : 'Tersedia' : product.status;
-  return { ...product, stock, status };
-};
+
 
 function Icon({ name, size = 20, stroke = 1.8 }) {
   const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: stroke, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true };
@@ -257,16 +252,18 @@ function AdminLoginPage({ onLogin, onBack }) {
 
 const TRANSACTION_STATUSES = ['Menunggu pembayaran', 'Dibayar', 'Diproses', 'Dikirim', 'Selesai', 'Dibatalkan'];
 const DEFAULT_TRANSACTIONS = [
-  { id: 'trx-1001', invoice: 'INV/LP/2026/001', date: '2026-09-29', customer: 'Andi Rahman', phone: '0812-3456-7890', size: '4–5 cm', category: 'Bibit favorit', quantity: 3, unitPrice: 215000, status: 'Menunggu pembayaran', payment: 'Transfer bank', stockDeducted: false },
-  { id: 'trx-1002', invoice: 'INV/LP/2026/002', date: '2026-09-28', customer: 'Dewi Sari', phone: '0813-4567-8901', size: '3–4 cm', category: 'Bibit kecil', quantity: 2, unitPrice: 180000, status: 'Dikirim', payment: 'QRIS', stockDeducted: false },
-  { id: 'trx-1003', invoice: 'INV/LP/2026/003', date: '2026-09-27', customer: 'Bambang Yulianto', phone: '0815-6789-0123', size: '5–6 cm', category: 'Bibit pembesaran', quantity: 5, unitPrice: 260000, status: 'Selesai', payment: 'Transfer bank', stockDeducted: true },
+  { id: 'trx-1001', invoice: 'INV/LP/2026/001', date: '2026-09-29', customer: 'Andi Rahman', phone: '0812-3456-7890', size: '4–5 cm', category: 'Bibit favorit', quantity: 3, unitPrice: 215000, status: 'Menunggu pembayaran', payment: 'Transfer bank' },
+  { id: 'trx-1002', invoice: 'INV/LP/2026/002', date: '2026-09-28', customer: 'Dewi Sari', phone: '0813-4567-8901', size: '3–4 cm', category: 'Bibit kecil', quantity: 2, unitPrice: 180000, status: 'Dikirim', payment: 'QRIS' },
+  { id: 'trx-1003', invoice: 'INV/LP/2026/003', date: '2026-09-27', customer: 'Bambang Yulianto', phone: '0815-6789-0123', size: '5–6 cm', category: 'Bibit pembesaran', quantity: 5, unitPrice: 260000, status: 'Selesai', payment: 'Transfer bank' },
 ];
 const DEFAULT_EXPENSES = [
   { id: 'exp-1', date: '2026-09-29', description: 'Pakan dan vitamin bibit', category: 'Operasional', amount: 425000 },
   { id: 'exp-2', date: '2026-09-26', description: 'Ongkos kirim pesanan', category: 'Pengiriman', amount: 180000 },
   { id: 'exp-3', date: '2026-09-24', description: 'Perawatan kolam', category: 'Perawatan', amount: 350000 },
 ];
-const orderTotal = (order) => (Number(order.quantity) || 0) * (Number(order.unitPrice) || 0);
+const orderSubtotal = (order) => Number(order.subtotal ?? (Number(order.quantity) || 0) * (Number(order.unitPrice) || 0));
+const orderDiscount = (order) => Math.max(0, Number(order.discount) || 0);
+const orderTotal = (order) => order.total !== undefined && order.total !== null && Number.isFinite(Number(order.total)) ? Number(order.total) : Math.max(0, orderSubtotal(order) - orderDiscount(order) + (Number(order.shippingFee) || 0));
 const isRevenueOrder = (order) => ['Dibayar', 'Diproses', 'Dikirim', 'Selesai'].includes(order.status);
 const formatDate = (value) => new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
 
@@ -293,7 +290,7 @@ function PageHeading({ eyebrow, title, description, action }) {
 
 function TransactionTable({ transactions, onStatusChange, onInvoice }) {
   return <div className="dashboard-panel data-panel"><div className="table-scroll"><table className="admin-data-table transaction-table"><thead><tr><th>PELANGGAN</th><th>TANGGAL / INVOICE</th><th>ITEM</th><th>TOTAL</th><th>STATUS</th><th></th></tr></thead><tbody>{transactions.map((order) => <tr key={order.id}>
-    <td><b>{order.customer}</b><small>{order.phone}</small></td><td><b>{formatDate(order.date)}</b><small>{order.invoice}</small></td><td><b>{order.category || 'Bibit lele'} · {order.size}</b><small>{order.quantity} kantong · {order.payment}</small></td><td><b>Rp {formatPrice(orderTotal(order))}</b></td>
+    <td><b>{order.customer}</b><small>{order.phone}</small></td><td><b>{formatDate(order.date)}</b><small>{order.invoice}</small></td><td><b>{order.category || 'Bibit lele'} · {order.size}</b><small>{order.quantity} kantong · {order.payment}</small>{(orderDiscount(order) > 0 || Number(order.shippingFee) > 0) && <small>Diskon Rp {formatPrice(orderDiscount(order))} · Ongkir Rp {formatPrice(order.shippingFee || 0)}</small>}</td><td><b>Rp {formatPrice(orderTotal(order))}</b></td>
     <td>{onStatusChange ? <select aria-label={`Status ${order.invoice}`} className={`order-status-select status-${order.status.toLowerCase().replaceAll(' ', '-')}`} value={order.status} onChange={(e) => onStatusChange(order.id, e.target.value)}>{TRANSACTION_STATUSES.map((status) => <option key={status}>{status}</option>)}</select> : <span className={`invoice-status status-${order.status.toLowerCase().replaceAll(' ', '-')}`}>{order.status}</span>}</td><td><button className="small-action" onClick={() => onInvoice(order)}>Invoice</button></td>
   </tr>)}</tbody></table>{transactions.length === 0 && <div className="empty-state">Tidak ada transaksi yang cocok.</div>}</div></div>;
 }
@@ -340,17 +337,35 @@ function StockTable({ products, draftProducts, setDraftProducts, onSave }) {
 }
 
 function OrderModal({ products, onClose, onSave }) {
-  const [form, setForm] = useState({ customer: '', phone: '', size: products[0]?.size || '', quantity: 1, status: 'Menunggu pembayaran', payment: 'Transfer bank' });
+  const [form, setForm] = useState({ customer: '', phone: '', size: products[0]?.size || '', quantity: 1, status: 'Menunggu pembayaran', payment: 'Transfer bank', discountType: 'Nominal', discountValue: 0, shippingFee: 0, note: '' });
   const selected = products.find((product) => product.size === form.size) || products[0];
+  const quantity = Math.max(1, Number(form.quantity) || 1);
+  const unitPrice = Number(selected?.price) || 0;
+  const subtotal = quantity * unitPrice;
+  const discountInput = Math.max(0, Number(form.discountValue) || 0);
+  const normalizedDiscountInput = form.discountType === 'Persen' ? Math.min(100, discountInput) : discountInput;
+  const discount = Math.min(subtotal, form.discountType === 'Persen' ? Math.round(subtotal * normalizedDiscountInput / 100) : normalizedDiscountInput);
+  const shippingFee = Math.max(0, Number(form.shippingFee) || 0);
+  const total = subtotal - discount + shippingFee;
   const submit = (event) => {
     event.preventDefault();
     if (!form.customer.trim() || !form.phone.trim() || !selected || Number(form.quantity) < 1) return;
     const today = new Date();
     const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const id = `trx-${Date.now()}`;
-    onSave({ id, invoice: `INV/LP/${today.getFullYear()}/${String(Date.now()).slice(-5)}`, date, customer: form.customer.trim(), phone: form.phone.trim(), size: selected.size, category: selected.category || 'Bibit lele', quantity: Number(form.quantity), unitPrice: selected.price, status: form.status, payment: form.payment, stockDeducted: false });
+    onSave({ id, invoice: `INV/LP/${today.getFullYear()}/${String(Date.now()).slice(-5)}`, date, customer: form.customer.trim(), phone: form.phone.trim(), size: selected.size, category: selected.category || 'Bibit lele', quantity, unitPrice, subtotal, discount, discountType: form.discountType, discountValue: normalizedDiscountInput, shippingFee, total, note: form.note.trim(), status: form.status, payment: form.payment });
   };
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="admin-dialog" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><Icon name="close" size={18} /></button><span className="page-overline">TRANSAKSI BARU</span><h2>Catat pesanan</h2><p>Masukkan detail transaksi pelanggan.</p><form className="admin-form" onSubmit={submit}><label>Nama pelanggan<input required value={form.customer} onChange={(e) => setForm({ ...form, customer: e.target.value })} placeholder="Nama lengkap" /></label><label>Nomor WhatsApp<input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="08xx xxxx xxxx" /></label><div className="form-row"><label>Ukuran bibit<select value={form.size} onChange={(e) => setForm({ ...form, size: e.target.value })}>{products.map((product) => <option key={product.id}>{product.size}</option>)}</select></label><label>Jumlah kantong<input required type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></label></div><div className="form-row"><label>Status<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{TRANSACTION_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label><label>Metode pembayaran<select value={form.payment} onChange={(e) => setForm({ ...form, payment: e.target.value })}><option>Transfer bank</option><option>QRIS</option><option>Tunai</option></select></label></div><div className="form-total"><span>Harga per kantong</span><b>Rp {formatPrice(selected?.price)}</b></div><button className="button button-dark full-button" type="submit">Simpan transaksi <Icon name="arrow" size={15} /></button></form></div></div>;
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="admin-dialog sale-dialog" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><Icon name="close" size={18} /></button><span className="page-overline">PENJUALAN WHATSAPP / MANUAL</span><h2>Catat penjualan bibit</h2><p>Input pesanan yang sudah dikonfirmasi admin. Harga produk terisi otomatis; inventaris tidak berubah dari transaksi ini.</p>
+    <form className="admin-form" onSubmit={submit}>
+      <label>Nama pelanggan<input required value={form.customer} onChange={(event) => setForm({ ...form, customer: event.target.value })} placeholder="Nama lengkap" /></label>
+      <label>Nomor WhatsApp<input required value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="08xx xxxx xxxx" /></label>
+      <div className="form-row"><label>Kategori / ukuran<select value={form.size} onChange={(event) => setForm({ ...form, size: event.target.value })}>{products.map((product) => <option key={product.id} value={product.size}>{product.category || 'Bibit lele'} · {product.size}</option>)}</select></label><label>Jumlah kantong<input required type="number" min="1" step="1" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} /></label></div>
+      <div className="form-row"><label>Diskon<select value={form.discountType} onChange={(event) => setForm({ ...form, discountType: event.target.value })}><option>Nominal</option><option>Persen</option></select><input aria-label="Nilai diskon" type="number" min="0" max={form.discountType === 'Persen' ? 100 : undefined} step={form.discountType === 'Persen' ? 1 : 1000} value={form.discountValue} onChange={(event) => setForm({ ...form, discountValue: event.target.value })} /></label><label>Ongkos kirim (Rp)<input type="number" min="0" step="1000" value={form.shippingFee} onChange={(event) => setForm({ ...form, shippingFee: event.target.value })} /></label></div>
+      <div className="form-row"><label>Status pembayaran<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>{TRANSACTION_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label><label>Metode pembayaran<select value={form.payment} onChange={(event) => setForm({ ...form, payment: event.target.value })}><option>Transfer bank</option><option>QRIS</option><option>Tunai</option></select></label></div>
+      <label>Catatan penjualan / keuangan<textarea rows="2" value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Contoh: uang muka, alamat kirim, kesepakatan harga…" /></label>
+      <div className="sale-calculation"><div><span>{quantity} × Rp {formatPrice(unitPrice)} · {selected?.category || 'Bibit lele'} {selected?.size}</span><b>Rp {formatPrice(subtotal)}</b></div><div><span>Diskon {form.discountType === 'Persen' ? `(${normalizedDiscountInput}%)` : ''}</span><b>− Rp {formatPrice(discount)}</b></div><div><span>Ongkos kirim</span><b>Rp {formatPrice(shippingFee)}</b></div><div className="sale-grand-total"><span>Total tagihan</span><b>Rp {formatPrice(total)}</b></div></div>
+      <button className="button button-dark full-button" type="submit">Simpan & buat invoice <Icon name="arrow" size={15} /></button>
+    </form></div></div>;
 }
 
 function ExpenseModal({ onClose, onSave }) {
@@ -363,7 +378,8 @@ function ExpenseModal({ onClose, onSave }) {
 
 function InvoiceModal({ order, onClose }) {
   if (!order) return null;
-  return <div className="modal-backdrop invoice-backdrop" onMouseDown={onClose}><div className="invoice-modal" onMouseDown={(event) => event.stopPropagation()}><div className="invoice-modal-actions"><span>Pratinjau invoice</span><div><button className="button button-outline" onClick={() => window.print()}>Cetak / Simpan PDF</button><button className="modal-close inline-close" onClick={onClose}><Icon name="close" size={18} /></button></div></div><article className="invoice-paper"><div className="invoice-brand"><Logo /><span>INVOICE</span></div><div className="invoice-meta"><div><small>DITAGIHKAN KEPADA</small><b>{order.customer}</b><span>{order.phone}</span></div><div><small>NOMOR INVOICE</small><b>{order.invoice}</b><span>Tanggal {formatDate(order.date)}</span></div></div><div className="invoice-divider"></div><table><thead><tr><th>DESKRIPSI</th><th>QTY</th><th>HARGA</th><th>JUMLAH</th></tr></thead><tbody><tr><td>{order.category || 'Bibit lele'} · ukuran {order.size}<small>1 kantong berisi ± 1.000 ekor</small></td><td>{order.quantity}</td><td>Rp {formatPrice(order.unitPrice)}</td><td>Rp {formatPrice(orderTotal(order))}</td></tr></tbody></table><div className="invoice-total"><span>Total pembayaran</span><b>Rp {formatPrice(orderTotal(order))}</b></div><div className="invoice-payment"><div><small>METODE PEMBAYARAN</small><b>{order.payment}</b></div><div><small>STATUS</small><b>{order.status}</b></div></div><p className="invoice-thanks">Terima kasih telah memilih lelepakabi.<br />Bibit sehat untuk panen yang lebih dekat.</p></article></div></div>;
+  const shippingFee = Number(order.shippingFee) || 0;
+  return <div className="modal-backdrop invoice-backdrop" onMouseDown={onClose}><div className="invoice-modal" onMouseDown={(event) => event.stopPropagation()}><div className="invoice-modal-actions"><span>Pratinjau invoice</span><div><button className="button button-outline" onClick={() => window.print()}>Cetak / Simpan PDF</button><button className="modal-close inline-close" onClick={onClose}><Icon name="close" size={18} /></button></div></div><article className="invoice-paper"><div className="invoice-brand"><Logo /><span>INVOICE</span></div><div className="invoice-seller-details">Bibit lele sehat · Cakung, Jakarta Timur · WhatsApp +62 821-2304-0643</div><div className="invoice-meta"><div><small>DITAGIHKAN KEPADA</small><b>{order.customer}</b><span>{order.phone}</span></div><div><small>NOMOR INVOICE</small><b>{order.invoice}</b><span>Tanggal {formatDate(order.date)}</span></div></div><div className="invoice-divider"></div><table><thead><tr><th>DESKRIPSI</th><th>QTY</th><th>HARGA</th><th>JUMLAH</th></tr></thead><tbody><tr><td>{order.category || 'Bibit lele'} · ukuran {order.size}<small>1 kantong berisi ± 1.000 ekor</small></td><td>{order.quantity}</td><td>Rp {formatPrice(order.unitPrice)}</td><td>Rp {formatPrice(orderSubtotal(order))}</td></tr></tbody></table><div className="invoice-summary"><div><span>Subtotal produk</span><b>Rp {formatPrice(orderSubtotal(order))}</b></div>{orderDiscount(order) > 0 && <div><span>Diskon {order.discountType === 'Persen' ? `(${order.discountValue}%)` : ''}</span><b>− Rp {formatPrice(orderDiscount(order))}</b></div>}<div><span>Ongkos kirim</span><b>Rp {formatPrice(shippingFee)}</b></div><div className="invoice-total"><span>Total tagihan</span><b>Rp {formatPrice(orderTotal(order))}</b></div></div><div className="invoice-payment"><div><small>METODE PEMBAYARAN</small><b>{order.payment}</b></div><div><small>STATUS PEMBAYARAN</small><b>{order.status}</b></div></div>{order.note && <p className="invoice-note"><b>Catatan:</b> {order.note}</p>}<p className="invoice-thanks">Terima kasih telah memilih lelepakabi.<br />Bibit sehat untuk panen yang lebih dekat.</p></article></div></div>;
 }
 
 function TransactionsPage({ transactions, onStatusChange, onInvoice, onNew }) {
@@ -422,21 +438,13 @@ function AdminDashboard({ products, onUpdateProducts, transactions, onUpdateTran
   const notify = (message) => { setToast(message); window.setTimeout(() => setToast(''), 2600); };
   const saveProducts = () => { onUpdateProducts(draftProducts); notify('Data stok dan katalog berhasil disimpan'); };
   const addTransaction = (order) => {
-    if (order.status === 'Selesai') {
-      onUpdateProducts(products.map((product) => product.size === order.size ? deductProductStock(product, order.quantity) : product));
-      order.stockDeducted = true;
-    }
-    onUpdateTransactions([order, ...transactions]); setShowOrder(false); notify('Transaksi berhasil dicatat');
+    onUpdateTransactions([order, ...transactions]);
+    setShowOrder(false);
+    notify('Penjualan dicatat dan invoice siap diterbitkan');
   };
   const updateStatus = (id, status) => {
-    const order = transactions.find((item) => item.id === id);
-    let nextProducts = products;
-    if (status === 'Selesai' && order && !order.stockDeducted) {
-      nextProducts = products.map((product) => product.size === order.size ? deductProductStock(product, order.quantity) : product);
-      onUpdateProducts(nextProducts);
-    }
-    onUpdateTransactions(transactions.map((item) => item.id === id ? { ...item, status, stockDeducted: item.stockDeducted || status === 'Selesai' } : item));
-    notify(status === 'Selesai' && order && !order.stockDeducted ? 'Status diperbarui; stok otomatis dikurangi' : 'Status transaksi diperbarui');
+    onUpdateTransactions(transactions.map((item) => item.id === id ? { ...item, status } : item));
+    notify('Status transaksi diperbarui; stok tetap dikelola manual');
   };
   const addExpense = (expense) => { onUpdateExpenses([expense, ...expenses]); setShowExpense(false); notify('Pengeluaran berhasil dicatat'); };
   const pageNames = { overview: 'Ringkasan', transactions: 'Transaksi', invoices: 'Invoice', finance: 'Keuangan', expenses: 'Pengeluaran', stock: 'Stok & katalog' };
@@ -447,7 +455,7 @@ function AdminDashboard({ products, onUpdateProducts, transactions, onUpdateTran
     {active === 'invoices' && <InvoicesPage transactions={transactions} onInvoice={setInvoiceOrder} />}
     {active === 'finance' && <FinancePage transactions={transactions} expenses={expenses} />}
     {active === 'expenses' && <ExpensesPage expenses={expenses} onNew={() => setShowExpense(true)} onDelete={(id) => { const expense = expenses.find((item) => item.id === id); if (expense && window.confirm(`Hapus catatan pengeluaran “${expense.description}”?`)) { onUpdateExpenses(expenses.filter((item) => item.id !== id)); notify('Pengeluaran dihapus'); } }} />}
-    {active === 'stock' && <><div className="stock-page-heading"><PageHeading eyebrow="INVENTARIS" title="Stok & katalog" description="Pantau stok bibit dan atur harga atau status yang tampil di toko." /><button className="button button-outline" onClick={() => setDraftProducts(products)}><Icon name="arrow" size={14} /> Batalkan perubahan</button></div><StockTable products={products} draftProducts={draftProducts} setDraftProducts={setDraftProducts} onSave={saveProducts} /><div className="stock-hint"><Icon name="help" size={15} /> Stok otomatis berkurang ketika status transaksi diubah menjadi Selesai.</div></>}
+    {active === 'stock' && <><div className="stock-page-heading"><PageHeading eyebrow="INVENTARIS" title="Stok & katalog" description="Pantau stok bibit dan atur harga atau status yang tampil di toko." /><button className="button button-outline" onClick={() => setDraftProducts(products)}><Icon name="arrow" size={14} /> Batalkan perubahan</button></div><StockTable products={products} draftProducts={draftProducts} setDraftProducts={setDraftProducts} onSave={saveProducts} /><div className="stock-hint"><Icon name="help" size={15} /> Stok tidak berubah otomatis dari transaksi; sesuaikan manual di inventaris setelah pesanan WA terkonfirmasi.</div></>}
   </div>{toast && <div className="save-toast"><Icon name="checkCircle" size={18} /> {toast}</div>}
     {showOrder && <OrderModal products={products} onClose={() => setShowOrder(false)} onSave={addTransaction} />}{showExpense && <ExpenseModal onClose={() => setShowExpense(false)} onSave={addExpense} />}{invoiceOrder && <InvoiceModal order={invoiceOrder} onClose={() => setInvoiceOrder(null)} />}
   </main></div>;

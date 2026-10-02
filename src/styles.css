@@ -378,3 +378,27 @@ h1 em, h2 em { font-family: Georgia, serif; font-weight: 400; color: #8bb358; le
   .stock-filter-row .text-button { margin-bottom: 4px; }
   .inventory-attention-list { grid-template-columns: 1fr; }
 }
+
+/* Manual sale ledger totals: items, discount and freight */
+.admin-form textarea { background: #fff; border: 1px solid #dfe7da; color: var(--ink); display: block; font: inherit; font-size: 10px; line-height: 1.6; margin-top: 6px; outline: 0; padding: 11px; resize: vertical; width: 100%; }
+.admin-form textarea:focus { border-color: #9fc56c; }
+.sale-dialog { max-width: 560px; }
+.sale-calculation { background: #f2f6ed; border: 1px solid #e3eadc; margin-top: 19px; padding: 12px 14px; }
+.sale-calculation > div { align-items: center; color: #7d8d82; display: flex; font-size: 9px; justify-content: space-between; padding: 6px 0; }
+.sale-calculation > div b { color: #526c5d; font-size: 10px; white-space: nowrap; }
+.sale-calculation .sale-grand-total { border-top: 1px solid #d9e3d3; color: var(--ink); font-size: 10px; font-weight: 800; margin-top: 5px; padding-top: 12px; }
+.sale-calculation .sale-grand-total b { color: var(--ink); font-size: 16px; }
+.invoice-seller-details { color: #829187; font: 8px 'DM Mono', monospace; padding-top: 10px; }
+.invoice-summary { margin: 14px 0 0 auto; max-width: 290px; }
+.invoice-summary > div:not(.invoice-total) { align-items: center; color: #7a8b81; display: flex; font-size: 9px; justify-content: space-between; padding: 6px 8px; }
+.invoice-summary > div:not(.invoice-total) b { color: #526c5d; font-size: 9px; }
+.invoice-summary .invoice-total { border-top: 1px solid #e4eae2; margin-top: 5px; padding: 13px 8px 8px; }
+.invoice-summary .invoice-total b { font-size: 17px; }
+.invoice-note { background: #f5f8f2; color: #72837a; font-size: 9px; line-height: 1.6; margin-top: 16px; padding: 11px 13px; }
+.invoice-note b { color: var(--ink); }
+@media (max-width: 580px) {
+  .sale-dialog { padding: 28px 18px; }
+  .sale-calculation { padding: 10px; }
+  .sale-calculation > div { font-size: 8px; gap: 8px; }
+  .sale-calculation .sale-grand-total b { font-size: 14px; }
+}
