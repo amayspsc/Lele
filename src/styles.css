@@ -115,6 +115,10 @@ h1 em, h2 em { font-family: Georgia, serif; font-weight: 400; color: #8bb358; le
 .status-dikirim { background: #e5f2f2; border-color: #d5e9e8; color: #54858d; }
 .status-selesai { background: #edf6df; border-color: #dcebc6; color: #679145; }
 .status-dibatalkan { background: #f8eae8; border-color: #efd9d5; color: #a96e65; }
+.invoice-status.lowstock { background: #fff0dc; border-color: #f3dfc4; color: #ad7632; }
+.invoice-status.soldout { background: #f8eae8; border-color: #efd9d5; color: #a96e65; }
+.invoice-status.available { background: #edf6df; border-color: #dcebc6; color: #679145; }
+.invoice-status.preorder { background: #fff3df; border-color: #f5e5c7; color: #a7793c; }
 .small-action { align-items: center; background: #f0f5e9; border: 0; color: #6f984b; display: inline-flex; font-size: 9px; font-weight: 800; gap: 5px; justify-content: center; padding: 8px 10px; white-space: nowrap; }
 .small-action:hover { background: #e4efcf; }
 .filter-bar { align-items: center; display: flex; gap: 10px; margin-top: 26px; }
@@ -330,4 +334,47 @@ h1 em, h2 em { font-family: Georgia, serif; font-weight: 400; color: #8bb358; le
 @media (max-width: 420px) {
   .location-actions { align-items: stretch; flex-direction: column; }.location-actions .button { width: 100%; }.location-wa { justify-content: center; padding: 5px; }
   .admin-login-header .logo { font-size: 16px; }.admin-login-card { padding-left: 20px; padding-right: 20px; }
+}
+
+/* Inventory categories and explicit stock states */
+.status-pill.lowstock { background: #fff0dc; color: #ad7632; }
+.status-pill.lowstock i { background: #e2a54e; }
+.status-select.available { background: #eff7e3; border-color: #d6eac3; color: #6d984a; }
+.status-select.lowstock { background: #fff5e5; border-color: #f4e1c0; color: #ad7632; }
+.status-select.preorder { background: #fff5e5; border-color: #f4e1c0; color: #b17d42; }
+.status-select.soldout { background: #f9ece8; border-color: #efd8d2; color: #af6e66; }
+.product-category-label { color: #829882; display: inline-block; font: 8px 'DM Mono', monospace; letter-spacing: .04em; margin-top: 11px; text-transform: uppercase; }
+.stock-status-cards { display: grid; gap: 9px; grid-template-columns: repeat(4, 1fr); padding: 0 24px 18px; }
+.stock-status-card { align-items: center; background: #fafbf8; border: 1px solid #e7ece4; color: #798b80; cursor: pointer; display: flex; justify-content: space-between; padding: 12px 13px; text-align: left; transition: .18s ease; }
+.stock-status-card:hover, .stock-status-card.selected { border-color: #94b86f; box-shadow: 0 0 0 2px rgba(148,184,111,.12); }
+.stock-status-card span { font-size: 9px; }.stock-status-card b { color: var(--ink); font-size: 17px; }
+.stock-status-card.available { background: #f4f8ec; }.stock-status-card.lowstock { background: #fff8ec; }.stock-status-card.preorder { background: #fff7ea; }.stock-status-card.soldout { background: #faf1ef; }
+.stock-filter-row { align-items: end; border-bottom: 1px solid #e9efe7; display: flex; gap: 10px; padding: 0 24px 14px; }
+.stock-filter-row label { color: #839188; display: flex; flex-direction: column; font: 8px 'DM Mono', monospace; gap: 5px; text-transform: uppercase; }
+.stock-filter-row select { background: #fff; border: 1px solid #e0e8dc; color: #65776f; font-size: 9px; min-width: 145px; padding: 8px 10px; }
+.stock-filter-row > span { color: #8c9b92; font: 8px 'DM Mono', monospace; margin: 0 auto 8px 4px; }
+.category-input { background: #fafbf9; border: 1px solid #e0e8dc; color: #60786a; font-size: 9px; min-width: 115px; outline: 0; padding: 9px; width: 135px; }
+.category-input:focus { border-color: #9fc56c; }
+.stock-quantity-control { align-items: center; display: flex; gap: 6px; }
+.stock-quantity-control small { color: #95a198; font: 8px 'DM Mono', monospace; }
+.stock-table { min-width: 940px; }
+.inventory-attention { background: #fff; border: 1px solid #e2e9df; margin-top: 14px; padding: 19px 21px; }
+.inventory-attention-heading { align-items: center; display: flex; justify-content: space-between; }
+.inventory-attention-heading h3 { font-size: 13px; margin: 7px 0 4px; }
+.inventory-attention-heading p { color: #909e95; font-size: 9px; margin: 0; }
+.inventory-attention-list { display: grid; gap: 7px; grid-template-columns: repeat(2, minmax(0,1fr)); margin-top: 15px; }
+.inventory-attention-item { align-items: center; background: #f8faf6; display: flex; gap: 10px; min-width: 0; padding: 9px; }
+.inventory-attention-item > div { flex: 1; min-width: 0; }
+.inventory-attention-item b, .inventory-attention-item small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inventory-attention-item b { font-size: 9px; }.inventory-attention-item small { color: #96a39b; font: 8px 'DM Mono', monospace; margin-top: 4px; }
+.inventory-attention-item .table-thumb { flex: 0 0 35px; }
+.inventory-all-good { align-items: center; color: #729752; display: flex; font-size: 9px; gap: 8px; margin-top: 15px; }
+@media (max-width: 760px) {
+  .stock-status-cards { grid-template-columns: repeat(2, 1fr); padding-left: 15px; padding-right: 15px; }
+  .stock-filter-row { align-items: stretch; flex-wrap: wrap; padding-left: 15px; padding-right: 15px; }
+  .stock-filter-row label { flex: 1; min-width: 125px; }
+  .stock-filter-row select { min-width: 0; width: 100%; }
+  .stock-filter-row > span { margin: 0 auto 7px 0; }
+  .stock-filter-row .text-button { margin-bottom: 4px; }
+  .inventory-attention-list { grid-template-columns: 1fr; }
 }

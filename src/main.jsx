@@ -5,18 +5,35 @@ import './styles.css';
 const STORE_ADDRESS = 'Jl. Kali Buaran, RT.10/RW.7, Penggilingan, Kec. Cakung, Kota Jakarta Timur, DKI Jakarta 13940';
 const STORE_MAP_URL = 'https://www.google.com/maps/search/?api=1&query=Bibit+Lele+pak+abi%2C+Jl.+Kali+Buaran%2C+Penggilingan%2C+Cakung%2C+Jakarta+Timur';
 const STORE_WA_URL = 'https://wa.me/6282123040643';
+const LOW_STOCK_THRESHOLD = 10;
+const STOCK_STATUSES = ['Tersedia', 'Stok menipis', 'Pre-order', 'Tidak tersedia'];
+const DEFAULT_STOCK_CATEGORIES = ['Bibit kecil', 'Bibit favorit', 'Bibit pembesaran', 'Bibit ukuran besar'];
 
 const DEFAULT_PRODUCTS = [
-  { id: 1, size: '3–4 cm', price: 180000, status: 'Tersedia', stock: 120, note: 'Cocok untuk pemula', accent: 'mint', sold: '1.000 ekor' },
-  { id: 2, size: '4–5 cm', price: 215000, status: 'Tersedia', stock: 86, note: 'Paling banyak dipesan', accent: 'orange', sold: '1.000 ekor', popular: true },
-  { id: 3, size: '5–6 cm', price: 260000, status: 'Pre-order', stock: 34, note: 'Lebih cepat dibesarkan', accent: 'blue', sold: '1.000 ekor' },
-  { id: 4, size: '7–8 cm', price: 340000, status: 'Habis', stock: 0, note: 'Stok masuk 04 Okt 2026', accent: 'violet', sold: '1.000 ekor' },
+  { id: 1, size: '3–4 cm', category: 'Bibit kecil', price: 180000, status: 'Tersedia', stock: 120, note: 'Cocok untuk pemula', accent: 'mint', sold: '1.000 ekor' },
+  { id: 2, size: '4–5 cm', category: 'Bibit favorit', price: 215000, status: 'Tersedia', stock: 86, note: 'Paling banyak dipesan', accent: 'orange', sold: '1.000 ekor', popular: true },
+  { id: 3, size: '5–6 cm', category: 'Bibit pembesaran', price: 260000, status: 'Pre-order', stock: 34, note: 'Lebih cepat dibesarkan', accent: 'blue', sold: '1.000 ekor' },
+  { id: 4, size: '7–8 cm', category: 'Bibit ukuran besar', price: 340000, status: 'Tidak tersedia', stock: 0, note: 'Stok masuk 04 Okt 2026', accent: 'violet', sold: '1.000 ekor' },
 ];
 
 const formatPrice = (value) => new Intl.NumberFormat('id-ID').format(Number(value) || 0);
 const formatShortPrice = (value) => {
   const number = Number(value) || 0;
   return number >= 1000000 ? `${(number / 1000000).toFixed(1).replace('.', ',')} jt` : `${Math.round(number / 1000)} rb`;
+};
+const getStockStatus = (product) => {
+  const savedStatus = product.status === 'Habis' ? 'Tidak tersedia' : product.status;
+  const quantity = Number(product.stock) || 0;
+  if (savedStatus === 'Tersedia') return quantity <= 0 ? 'Tidak tersedia' : quantity <= LOW_STOCK_THRESHOLD ? 'Stok menipis' : 'Tersedia';
+  if (savedStatus === 'Stok menipis') return quantity <= 0 ? 'Tidak tersedia' : quantity > LOW_STOCK_THRESHOLD ? 'Tersedia' : 'Stok menipis';
+  return STOCK_STATUSES.includes(savedStatus) ? savedStatus : 'Tersedia';
+};
+const stockStatusClass = (status) => status === 'Tersedia' ? 'available' : status === 'Pre-order' ? 'preorder' : status === 'Stok menipis' ? 'lowstock' : 'soldout';
+const deductProductStock = (product, bags) => {
+  const stock = Math.max(0, Number(product.stock || 0) - Number(bags || 0));
+  const currentStatus = getStockStatus(product);
+  const status = ['Tersedia', 'Stok menipis'].includes(currentStatus) ? stock <= 0 ? 'Tidak tersedia' : stock <= LOW_STOCK_THRESHOLD ? 'Stok menipis' : 'Tersedia' : product.status;
+  return { ...product, stock, status };
 };
 
 function Icon({ name, size = 20, stroke = 1.8 }) {
@@ -64,8 +81,7 @@ function Logo({ light = false, compact = false }) {
 }
 
 function StatusPill({ status, small = false }) {
-  const className = status === 'Tersedia' ? 'available' : status === 'Pre-order' ? 'preorder' : 'soldout';
-  return <span className={`status-pill ${className} ${small ? 'small' : ''}`}><i></i>{status}</span>;
+  return <span className={`status-pill ${stockStatusClass(status)} ${small ? 'small' : ''}`}><i></i>{status}</span>;
 }
 
 function Header() {
@@ -147,20 +163,23 @@ function Hero() {
 }
 
 function ProductCard({ product, onOrder }) {
-  return <article className={`product-card ${product.popular ? 'is-popular' : ''} ${product.status === 'Habis' ? 'is-soldout' : ''}`}>
+  const status = getStockStatus(product);
+  const unavailable = status === 'Tidak tersedia';
+  return <article className={`product-card ${product.popular ? 'is-popular' : ''} ${unavailable ? 'is-soldout' : ''}`}>
     {product.popular && <div className="popular-ribbon"><Icon name="star" size={12} /> Pilihan pembudidaya</div>}
     <div className={`product-top ${product.accent}`}><div className="product-orb orb-one"></div><div className="product-orb orb-two"></div><span className="size-badge">Ukuran</span><strong>{product.size}</strong><span className="fish-count">× 1.000 ekor</span></div>
     <div className="product-body">
-      <div className="product-status"><StatusPill status={product.status} /><span className="note">{product.note}</span></div>
+      <div className="product-status"><StatusPill status={status} /><span className="note">{product.note}</span></div>
+      <span className="product-category-label">{product.category || 'Bibit lele'}</span>
       <div className="price-line"><span className="currency">Rp</span><strong>{formatPrice(product.price)}</strong></div>
       <div className="price-unit">per kantong <span>·</span> isi ± 1.000 ekor</div>
-      <button disabled={product.status === 'Habis'} onClick={() => onOrder(product)} className="product-button">{product.status === 'Habis' ? 'Stok habis' : product.status === 'Pre-order' ? 'Tanya pre-order' : 'Pesan ukuran ini'} <Icon name="arrow" size={16} /></button>
+      <button disabled={unavailable} onClick={() => onOrder(product)} className="product-button">{unavailable ? 'Tidak tersedia' : status === 'Pre-order' ? 'Tanya pre-order' : status === 'Stok menipis' ? 'Pesan sebelum habis' : 'Pesan ukuran ini'} <Icon name="arrow" size={16} /></button>
     </div>
   </article>;
 }
 
 function Catalog({ products, onOrder }) {
-  const available = products.filter((p) => p.status !== 'Habis').length;
+  const available = products.filter((product) => ['Tersedia', 'Stok menipis'].includes(getStockStatus(product))).length;
   return <section className="catalog-section" id="produk">
     <div className="container">
       <div className="section-heading catalog-heading"><div><div className="section-kicker">Katalog bibit <span></span></div><h2>Ukuran yang pas,<br /><em>hasil yang jelas.</em></h2></div><div className="heading-side"><p>Semua bibit dihitung per 1.000 ekor dan sudah melalui proses sortir agar lebih seragam saat ditebar.</p><div className="stock-summary"><span className="stock-live"></span> {available} ukuran tersedia hari ini</div></div></div>
@@ -238,9 +257,9 @@ function AdminLoginPage({ onLogin, onBack }) {
 
 const TRANSACTION_STATUSES = ['Menunggu pembayaran', 'Dibayar', 'Diproses', 'Dikirim', 'Selesai', 'Dibatalkan'];
 const DEFAULT_TRANSACTIONS = [
-  { id: 'trx-1001', invoice: 'INV/LP/2026/001', date: '2026-09-29', customer: 'Andi Rahman', phone: '0812-3456-7890', size: '4–5 cm', quantity: 3, unitPrice: 215000, status: 'Menunggu pembayaran', payment: 'Transfer bank', stockDeducted: false },
-  { id: 'trx-1002', invoice: 'INV/LP/2026/002', date: '2026-09-28', customer: 'Dewi Sari', phone: '0813-4567-8901', size: '3–4 cm', quantity: 2, unitPrice: 180000, status: 'Dikirim', payment: 'QRIS', stockDeducted: false },
-  { id: 'trx-1003', invoice: 'INV/LP/2026/003', date: '2026-09-27', customer: 'Bambang Yulianto', phone: '0815-6789-0123', size: '5–6 cm', quantity: 5, unitPrice: 260000, status: 'Selesai', payment: 'Transfer bank', stockDeducted: true },
+  { id: 'trx-1001', invoice: 'INV/LP/2026/001', date: '2026-09-29', customer: 'Andi Rahman', phone: '0812-3456-7890', size: '4–5 cm', category: 'Bibit favorit', quantity: 3, unitPrice: 215000, status: 'Menunggu pembayaran', payment: 'Transfer bank', stockDeducted: false },
+  { id: 'trx-1002', invoice: 'INV/LP/2026/002', date: '2026-09-28', customer: 'Dewi Sari', phone: '0813-4567-8901', size: '3–4 cm', category: 'Bibit kecil', quantity: 2, unitPrice: 180000, status: 'Dikirim', payment: 'QRIS', stockDeducted: false },
+  { id: 'trx-1003', invoice: 'INV/LP/2026/003', date: '2026-09-27', customer: 'Bambang Yulianto', phone: '0815-6789-0123', size: '5–6 cm', category: 'Bibit pembesaran', quantity: 5, unitPrice: 260000, status: 'Selesai', payment: 'Transfer bank', stockDeducted: true },
 ];
 const DEFAULT_EXPENSES = [
   { id: 'exp-1', date: '2026-09-29', description: 'Pakan dan vitamin bibit', category: 'Operasional', amount: 425000 },
@@ -274,14 +293,50 @@ function PageHeading({ eyebrow, title, description, action }) {
 
 function TransactionTable({ transactions, onStatusChange, onInvoice }) {
   return <div className="dashboard-panel data-panel"><div className="table-scroll"><table className="admin-data-table transaction-table"><thead><tr><th>PELANGGAN</th><th>TANGGAL / INVOICE</th><th>ITEM</th><th>TOTAL</th><th>STATUS</th><th></th></tr></thead><tbody>{transactions.map((order) => <tr key={order.id}>
-    <td><b>{order.customer}</b><small>{order.phone}</small></td><td><b>{formatDate(order.date)}</b><small>{order.invoice}</small></td><td><b>Bibit {order.size}</b><small>{order.quantity} kantong · {order.payment}</small></td><td><b>Rp {formatPrice(orderTotal(order))}</b></td>
+    <td><b>{order.customer}</b><small>{order.phone}</small></td><td><b>{formatDate(order.date)}</b><small>{order.invoice}</small></td><td><b>{order.category || 'Bibit lele'} · {order.size}</b><small>{order.quantity} kantong · {order.payment}</small></td><td><b>Rp {formatPrice(orderTotal(order))}</b></td>
     <td>{onStatusChange ? <select aria-label={`Status ${order.invoice}`} className={`order-status-select status-${order.status.toLowerCase().replaceAll(' ', '-')}`} value={order.status} onChange={(e) => onStatusChange(order.id, e.target.value)}>{TRANSACTION_STATUSES.map((status) => <option key={status}>{status}</option>)}</select> : <span className={`invoice-status status-${order.status.toLowerCase().replaceAll(' ', '-')}`}>{order.status}</span>}</td><td><button className="small-action" onClick={() => onInvoice(order)}>Invoice</button></td>
   </tr>)}</tbody></table>{transactions.length === 0 && <div className="empty-state">Tidak ada transaksi yang cocok.</div>}</div></div>;
 }
 
 function StockTable({ products, draftProducts, setDraftProducts, onSave }) {
-  const update = (id, key, value) => setDraftProducts(draftProducts.map((product) => product.id === id ? { ...product, [key]: key === 'price' || key === 'stock' ? Math.max(0, Number(value) || 0) : value } : product));
-  return <div className="dashboard-panel stock-panel"><div className="panel-head"><div><h3>Harga & ketersediaan</h3><p>Kelola jumlah stok kantong, harga, dan status pada katalog publik.</p></div><span className="last-updated"><span className="green-dot"></span> Data tersimpan di perangkat ini</span></div><div className="table-scroll"><table className="stock-table"><thead><tr><th>UKURAN BIBIT</th><th>HARGA / 1.000 EKOR</th><th>STOK (KANTONG)</th><th>STATUS KATALOG</th></tr></thead><tbody>{draftProducts.map((product) => <tr key={product.id}><td><div className="table-product"><div className={`table-thumb ${product.accent}`}><span>{product.size.split('–')[0]}</span></div><div><b>Bibit lele {product.size}</b><small>{product.note}</small></div></div></td><td><div className="price-input"><span>Rp</span><input aria-label={`Harga bibit ${product.size}`} type="number" min="0" step="5000" value={product.price} onChange={(e) => update(product.id, 'price', e.target.value)} /></div></td><td><input className="stock-number-input" aria-label={`Stok bibit ${product.size}`} type="number" min="0" value={product.stock ?? 0} onChange={(e) => update(product.id, 'stock', e.target.value)} /></td><td><select className={`status-select ${product.status === 'Tersedia' ? 'green' : product.status === 'Pre-order' ? 'yellow' : 'red'}`} value={product.status} onChange={(e) => update(product.id, 'status', e.target.value)}><option>Tersedia</option><option>Pre-order</option><option>Habis</option></select></td></tr>)}</tbody></table></div><div className="panel-footer"><span><Icon name="checkCircle" size={16} /> Stok dan katalog publik diperbarui setelah disimpan.</span><button className="button button-dark save-button" onClick={onSave}>Simpan perubahan <Icon name="arrow" size={15} /></button></div></div>;
+  const [categoryFilter, setCategoryFilter] = useState('Semua kategori');
+  const [statusFilter, setStatusFilter] = useState('Semua status');
+  const categories = [...new Set([...DEFAULT_STOCK_CATEGORIES, ...draftProducts.map((product) => product.category || 'Bibit lele')])];
+  const statusCounts = STOCK_STATUSES.reduce((counts, status) => ({ ...counts, [status]: draftProducts.filter((product) => getStockStatus(product) === status).length }), {});
+  const filteredProducts = draftProducts.filter((product) => (categoryFilter === 'Semua kategori' || (product.category || 'Bibit lele') === categoryFilter) && (statusFilter === 'Semua status' || getStockStatus(product) === statusFilter));
+  const update = (id, key, value) => setDraftProducts((previous) => previous.map((product) => {
+    if (product.id !== id) return product;
+    const quantity = Number(product.stock) || 0;
+    if (key === 'price') return { ...product, price: Math.max(0, Number(value) || 0) };
+    if (key === 'category') return { ...product, category: value };
+    if (key === 'status') {
+      let status = value;
+      if (status === 'Tersedia' && quantity <= LOW_STOCK_THRESHOLD) status = quantity <= 0 ? 'Tidak tersedia' : 'Stok menipis';
+      if (status === 'Stok menipis' && quantity <= 0) status = 'Tidak tersedia';
+      return { ...product, status };
+    }
+    if (key === 'stock') {
+      const nextQuantity = Math.max(0, Number(value) || 0);
+      const savedStatus = product.status === 'Habis' ? 'Tidak tersedia' : product.status;
+      let status = savedStatus;
+      if (['Tersedia', 'Stok menipis'].includes(savedStatus) || (savedStatus === 'Tidak tersedia' && quantity === 0)) {
+        status = nextQuantity <= 0 ? 'Tidak tersedia' : nextQuantity <= LOW_STOCK_THRESHOLD ? 'Stok menipis' : 'Tersedia';
+      }
+      return { ...product, stock: nextQuantity, status };
+    }
+    return product;
+  }));
+  const chooseStatus = (status) => setStatusFilter(statusFilter === status ? 'Semua status' : status);
+  return <div className="dashboard-panel stock-panel">
+    <div className="panel-head"><div><h3>Inventaris bibit</h3><p>Kategorikan produk, pantau stok, dan atur status katalog.</p></div><span className="last-updated"><span className="green-dot"></span> Tersimpan setelah dikonfirmasi</span></div>
+    <div className="stock-status-cards">{STOCK_STATUSES.map((status) => <button key={status} className={`stock-status-card ${stockStatusClass(status)} ${statusFilter === status ? 'selected' : ''}`} onClick={() => chooseStatus(status)}><span>{status}</span><b>{statusCounts[status]}</b></button>)}</div>
+    <div className="stock-filter-row"><label>Kategori<select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option>Semua kategori</option>{categories.map((category) => <option key={category}>{category}</option>)}</select></label><label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>Semua status</option>{STOCK_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label><span>{filteredProducts.length} produk</span><button className="text-button" onClick={() => { setCategoryFilter('Semua kategori'); setStatusFilter('Semua status'); }}>Reset filter</button></div><datalist id="stock-category-options">{categories.map((category) => <option key={category} value={category} />)}</datalist>
+    <div className="table-scroll"><table className="stock-table"><thead><tr><th>PRODUK / UKURAN</th><th>KATEGORI</th><th>HARGA / 1.000 EKOR</th><th>STOK KANTONG</th><th>STATUS INVENTARIS</th></tr></thead><tbody>{filteredProducts.map((product) => {
+      const status = getStockStatus(product);
+      return <tr key={product.id}><td><div className="table-product"><div className={`table-thumb ${product.accent}`}><span>{product.size.split('–')[0]}</span></div><div><b>Bibit lele {product.size}</b><small>{product.note}</small></div></div></td><td><input className="category-input" list="stock-category-options" aria-label={`Kategori bibit ${product.size}`} value={product.category || 'Bibit lele'} onChange={(event) => update(product.id, 'category', event.target.value)} /></td><td><div className="price-input"><span>Rp</span><input aria-label={`Harga bibit ${product.size}`} type="number" min="0" step="5000" value={product.price} onChange={(event) => update(product.id, 'price', event.target.value)} /></div></td><td><div className="stock-quantity-control"><input className="stock-number-input" aria-label={`Stok bibit ${product.size}`} type="number" min="0" value={product.stock ?? 0} onChange={(event) => update(product.id, 'stock', event.target.value)} /><small>kantong</small></div></td><td><select className={`status-select ${stockStatusClass(status)}`} value={status} onChange={(event) => update(product.id, 'status', event.target.value)}>{STOCK_STATUSES.map((item) => <option key={item}>{item}</option>)}</select></td></tr>;
+    })}</tbody></table>{filteredProducts.length === 0 && <div className="empty-state">Tidak ada produk untuk filter ini.</div>}</div>
+    <div className="panel-footer"><span><Icon name="help" size={16} /> Stok 1–{LOW_STOCK_THRESHOLD} kantong otomatis ditandai menipis.</span><button className="button button-dark save-button" onClick={onSave}>Simpan inventaris <Icon name="arrow" size={15} /></button></div>
+  </div>;
 }
 
 function OrderModal({ products, onClose, onSave }) {
@@ -293,7 +348,7 @@ function OrderModal({ products, onClose, onSave }) {
     const today = new Date();
     const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const id = `trx-${Date.now()}`;
-    onSave({ id, invoice: `INV/LP/${today.getFullYear()}/${String(Date.now()).slice(-5)}`, date, customer: form.customer.trim(), phone: form.phone.trim(), size: selected.size, quantity: Number(form.quantity), unitPrice: selected.price, status: form.status, payment: form.payment, stockDeducted: false });
+    onSave({ id, invoice: `INV/LP/${today.getFullYear()}/${String(Date.now()).slice(-5)}`, date, customer: form.customer.trim(), phone: form.phone.trim(), size: selected.size, category: selected.category || 'Bibit lele', quantity: Number(form.quantity), unitPrice: selected.price, status: form.status, payment: form.payment, stockDeducted: false });
   };
   return <div className="modal-backdrop" onMouseDown={onClose}><div className="admin-dialog" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><Icon name="close" size={18} /></button><span className="page-overline">TRANSAKSI BARU</span><h2>Catat pesanan</h2><p>Masukkan detail transaksi pelanggan.</p><form className="admin-form" onSubmit={submit}><label>Nama pelanggan<input required value={form.customer} onChange={(e) => setForm({ ...form, customer: e.target.value })} placeholder="Nama lengkap" /></label><label>Nomor WhatsApp<input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="08xx xxxx xxxx" /></label><div className="form-row"><label>Ukuran bibit<select value={form.size} onChange={(e) => setForm({ ...form, size: e.target.value })}>{products.map((product) => <option key={product.id}>{product.size}</option>)}</select></label><label>Jumlah kantong<input required type="number" min="1" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></label></div><div className="form-row"><label>Status<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{TRANSACTION_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label><label>Metode pembayaran<select value={form.payment} onChange={(e) => setForm({ ...form, payment: e.target.value })}><option>Transfer bank</option><option>QRIS</option><option>Tunai</option></select></label></div><div className="form-total"><span>Harga per kantong</span><b>Rp {formatPrice(selected?.price)}</b></div><button className="button button-dark full-button" type="submit">Simpan transaksi <Icon name="arrow" size={15} /></button></form></div></div>;
 }
@@ -308,18 +363,20 @@ function ExpenseModal({ onClose, onSave }) {
 
 function InvoiceModal({ order, onClose }) {
   if (!order) return null;
-  return <div className="modal-backdrop invoice-backdrop" onMouseDown={onClose}><div className="invoice-modal" onMouseDown={(event) => event.stopPropagation()}><div className="invoice-modal-actions"><span>Pratinjau invoice</span><div><button className="button button-outline" onClick={() => window.print()}>Cetak / Simpan PDF</button><button className="modal-close inline-close" onClick={onClose}><Icon name="close" size={18} /></button></div></div><article className="invoice-paper"><div className="invoice-brand"><Logo /><span>INVOICE</span></div><div className="invoice-meta"><div><small>DITAGIHKAN KEPADA</small><b>{order.customer}</b><span>{order.phone}</span></div><div><small>NOMOR INVOICE</small><b>{order.invoice}</b><span>Tanggal {formatDate(order.date)}</span></div></div><div className="invoice-divider"></div><table><thead><tr><th>DESKRIPSI</th><th>QTY</th><th>HARGA</th><th>JUMLAH</th></tr></thead><tbody><tr><td>Bibit lele ukuran {order.size}<small>1 kantong berisi ± 1.000 ekor</small></td><td>{order.quantity}</td><td>Rp {formatPrice(order.unitPrice)}</td><td>Rp {formatPrice(orderTotal(order))}</td></tr></tbody></table><div className="invoice-total"><span>Total pembayaran</span><b>Rp {formatPrice(orderTotal(order))}</b></div><div className="invoice-payment"><div><small>METODE PEMBAYARAN</small><b>{order.payment}</b></div><div><small>STATUS</small><b>{order.status}</b></div></div><p className="invoice-thanks">Terima kasih telah memilih lelepakabi.<br />Bibit sehat untuk panen yang lebih dekat.</p></article></div></div>;
+  return <div className="modal-backdrop invoice-backdrop" onMouseDown={onClose}><div className="invoice-modal" onMouseDown={(event) => event.stopPropagation()}><div className="invoice-modal-actions"><span>Pratinjau invoice</span><div><button className="button button-outline" onClick={() => window.print()}>Cetak / Simpan PDF</button><button className="modal-close inline-close" onClick={onClose}><Icon name="close" size={18} /></button></div></div><article className="invoice-paper"><div className="invoice-brand"><Logo /><span>INVOICE</span></div><div className="invoice-meta"><div><small>DITAGIHKAN KEPADA</small><b>{order.customer}</b><span>{order.phone}</span></div><div><small>NOMOR INVOICE</small><b>{order.invoice}</b><span>Tanggal {formatDate(order.date)}</span></div></div><div className="invoice-divider"></div><table><thead><tr><th>DESKRIPSI</th><th>QTY</th><th>HARGA</th><th>JUMLAH</th></tr></thead><tbody><tr><td>{order.category || 'Bibit lele'} · ukuran {order.size}<small>1 kantong berisi ± 1.000 ekor</small></td><td>{order.quantity}</td><td>Rp {formatPrice(order.unitPrice)}</td><td>Rp {formatPrice(orderTotal(order))}</td></tr></tbody></table><div className="invoice-total"><span>Total pembayaran</span><b>Rp {formatPrice(orderTotal(order))}</b></div><div className="invoice-payment"><div><small>METODE PEMBAYARAN</small><b>{order.payment}</b></div><div><small>STATUS</small><b>{order.status}</b></div></div><p className="invoice-thanks">Terima kasih telah memilih lelepakabi.<br />Bibit sehat untuk panen yang lebih dekat.</p></article></div></div>;
 }
 
 function TransactionsPage({ transactions, onStatusChange, onInvoice, onNew }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('Semua status');
-  const filtered = transactions.filter((order) => `${order.customer} ${order.invoice} ${order.phone}`.toLowerCase().includes(search.toLowerCase()) && (filter === 'Semua status' || order.status === filter));
-  return <><PageHeading eyebrow="PENJUALAN" title="Transaksi" description="Catat pesanan, perbarui status, dan lihat detail pembelian." action={<button className="button button-dark" onClick={onNew}><Icon name="plus" size={16} /> Transaksi baru</button>} /><div className="filter-bar"><label className="search-box"><Icon name="search" size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari pelanggan atau invoice" /></label><select value={filter} onChange={(e) => setFilter(e.target.value)}><option>Semua status</option>{TRANSACTION_STATUSES.map((status) => <option key={status}>{status}</option>)}</select><span>{filtered.length} transaksi</span></div><TransactionTable transactions={filtered} onStatusChange={onStatusChange} onInvoice={onInvoice} /></>;
+  const [categoryFilter, setCategoryFilter] = useState('Semua kategori');
+  const categories = [...new Set(transactions.map((order) => order.category || 'Bibit lele'))];
+  const filtered = transactions.filter((order) => `${order.customer} ${order.invoice} ${order.phone} ${order.size} ${order.category || 'Bibit lele'}`.toLowerCase().includes(search.toLowerCase()) && (filter === 'Semua status' || order.status === filter) && (categoryFilter === 'Semua kategori' || (order.category || 'Bibit lele') === categoryFilter));
+  return <><PageHeading eyebrow="PENJUALAN" title="Transaksi penjualan" description="Catat penjualan bibit, pantau pembayarannya, dan terbitkan invoice." action={<button className="button button-dark" onClick={onNew}><Icon name="plus" size={16} /> Catat penjualan</button>} /><div className="filter-bar"><label className="search-box"><Icon name="search" size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari pelanggan, invoice, atau ukuran" /></label><select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}><option>Semua kategori</option>{categories.map((category) => <option key={category}>{category}</option>)}</select><select value={filter} onChange={(e) => setFilter(e.target.value)}><option>Semua status</option>{TRANSACTION_STATUSES.map((status) => <option key={status}>{status}</option>)}</select><span>{filtered.length} transaksi</span></div><TransactionTable transactions={filtered} onStatusChange={onStatusChange} onInvoice={onInvoice} /></>;
 }
 
 function InvoicesPage({ transactions, onInvoice }) {
-  return <><PageHeading eyebrow="DOKUMEN PENJUALAN" title="Invoice" description="Pilih transaksi untuk pratinjau, cetak, atau simpan invoice sebagai PDF." /><div className="invoice-card-grid">{transactions.map((order) => <article className="invoice-list-card" key={order.id}><div className="invoice-card-top"><span className="invoice-card-icon"><Icon name="receipt" size={19} /></span><span className={`invoice-status status-${order.status.toLowerCase().replaceAll(' ', '-')}`}>{order.status}</span></div><small>{order.invoice}</small><h3>{order.customer}</h3><p>{formatDate(order.date)} <span>·</span> Bibit {order.size}, {order.quantity} kantong</p><div><b>Rp {formatPrice(orderTotal(order))}</b><button className="small-action" onClick={() => onInvoice(order)}>Buka invoice <Icon name="arrow" size={13} /></button></div></article>)}</div>{transactions.length === 0 && <div className="empty-state">Invoice akan muncul setelah transaksi dicatat.</div>}</>;
+  return <><PageHeading eyebrow="DOKUMEN PENJUALAN" title="Invoice" description="Pilih transaksi untuk pratinjau, cetak, atau simpan invoice sebagai PDF." /><div className="invoice-card-grid">{transactions.map((order) => <article className="invoice-list-card" key={order.id}><div className="invoice-card-top"><span className="invoice-card-icon"><Icon name="receipt" size={19} /></span><span className={`invoice-status status-${order.status.toLowerCase().replaceAll(' ', '-')}`}>{order.status}</span></div><small>{order.invoice}</small><h3>{order.customer}</h3><p>{formatDate(order.date)} <span>·</span> {order.category || 'Bibit lele'} {order.size}, {order.quantity} kantong</p><div><b>Rp {formatPrice(orderTotal(order))}</b><button className="small-action" onClick={() => onInvoice(order)}>Buka invoice <Icon name="arrow" size={13} /></button></div></article>)}</div>{transactions.length === 0 && <div className="empty-state">Invoice akan muncul setelah transaksi dicatat.</div>}</>;
 }
 
 function FinancePage({ transactions, expenses }) {
@@ -335,6 +392,11 @@ function ExpensesPage({ expenses, onNew, onDelete }) {
   return <><PageHeading eyebrow="BIAYA USAHA" title="Pengeluaran" description="Catat biaya operasional budidaya dan pengiriman." action={<button className="button button-dark" onClick={onNew}><Icon name="plus" size={16} /> Tambah biaya</button>} /><div className="expense-total-card"><span>Total pengeluaran tercatat</span><b>Rp {formatPrice(total)}</b><small>{expenses.length} catatan biaya</small></div><div className="dashboard-panel data-panel expense-panel"><div className="table-scroll"><table className="admin-data-table"><thead><tr><th>TANGGAL</th><th>DESKRIPSI</th><th>KATEGORI</th><th>JUMLAH</th><th></th></tr></thead><tbody>{[...expenses].sort((a, b) => b.date.localeCompare(a.date)).map((expense) => <tr key={expense.id}><td><b>{formatDate(expense.date)}</b></td><td><b>{expense.description}</b></td><td><span className="category-pill">{expense.category}</span></td><td><b>Rp {formatPrice(expense.amount)}</b></td><td><button className="delete-action" aria-label={`Hapus ${expense.description}`} onClick={() => onDelete(expense.id)}>Hapus</button></td></tr>)}</tbody></table>{expenses.length === 0 && <div className="empty-state">Belum ada pengeluaran yang dicatat.</div>}</div></div></>;
 }
 
+function InventoryAttention({ products, onManage }) {
+  const attention = products.filter((product) => ['Stok menipis', 'Tidak tersedia'].includes(getStockStatus(product)));
+  return <section className="inventory-attention"><div className="inventory-attention-heading"><div><span className="page-overline">INVENTARIS</span><h3>Perlu perhatian</h3><p>{attention.length ? `${attention.length} ukuran perlu dicek atau di-restock.` : 'Semua kategori stok dalam kondisi aman.'}</p></div><button className="text-button" onClick={onManage}>Kelola stok <Icon name="arrow" size={14} /></button></div>{attention.length ? <div className="inventory-attention-list">{attention.map((product) => <div className="inventory-attention-item" key={product.id}><span className={`table-thumb ${product.accent}`}>{product.size.split('–')[0]}</span><div><b>{product.category || 'Bibit lele'} · {product.size}</b><small>{product.stock} kantong tersisa</small></div><span className={`invoice-status ${stockStatusClass(getStockStatus(product))}`}>{getStockStatus(product)}</span></div>)}</div> : <div className="inventory-all-good"><Icon name="checkCircle" size={17} /> Tidak ada stok menipis atau kosong.</div>}</section>;
+}
+
 function OverviewPage({ transactions, expenses, products, setActive, onInvoice }) {
   const revenue = transactions.filter(isRevenueOrder).reduce((sum, order) => sum + orderTotal(order), 0);
   const pending = transactions.filter((order) => ['Menunggu pembayaran', 'Dibayar'].includes(order.status)).length;
@@ -343,7 +405,7 @@ function OverviewPage({ transactions, expenses, products, setActive, onInvoice }
   const today = new Date();
   const todayLabel = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(today);
   const shortToday = new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(today);
-  return <><PageHeading eyebrow={todayLabel} title="Selamat pagi, admin." description="Ringkasan usaha lelepakabi hari ini." action={<span className="date-chip"><Icon name="dashboard" size={15} /> {shortToday}</span>} /><div className="metrics-grid"><MetricCard icon="wallet" label="Pemasukan tercatat" value={`Rp ${formatShortPrice(revenue)}`} trend={`${transactions.length} transaksi`} accent="lime" /><MetricCard icon="package" label="Bibit dalam pesanan" value={formatPrice(unitsSold)} trend="ekor" accent="blue" /><MetricCard icon="list" label="Perlu ditindaklanjuti" value={String(pending)} trend="pesanan" accent="purple" /><MetricCard icon="chart" label="Pengeluaran" value={`Rp ${formatShortPrice(expenses.reduce((sum, item) => sum + Number(item.amount), 0))}`} trend={`${activeStock} kantong`} accent="orange" /></div><div className="overview-grid admin-overview-grid"><div className="dashboard-panel overview-panel"><div className="panel-head"><div><h3>Transaksi terbaru</h3><p>Pilih invoice untuk meninjau detail transaksi.</p></div><button className="text-button" onClick={() => setActive('transactions')}>Lihat semua <Icon name="arrow" size={14} /></button></div><TransactionTable transactions={transactions.slice(0, 3)} onStatusChange={null} onInvoice={onInvoice} /></div><div className="quick-admin-actions"><button onClick={() => setActive('stock')}><Icon name="package" size={19} /><span><b>Kelola stok</b><small>Atur jumlah dan status bibit</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('finance')}><Icon name="wallet" size={19} /><span><b>Lihat keuangan</b><small>Pemasukan dan estimasi laba</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('expenses')}><Icon name="chart" size={19} /><span><b>Catat pengeluaran</b><small>Perbarui biaya operasional</small></span><Icon name="arrow" size={15} /></button></div></div></>;
+  return <><PageHeading eyebrow={todayLabel} title="Selamat pagi, admin." description="Ringkasan usaha lelepakabi hari ini." action={<span className="date-chip"><Icon name="dashboard" size={15} /> {shortToday}</span>} /><div className="metrics-grid"><MetricCard icon="wallet" label="Pemasukan tercatat" value={`Rp ${formatShortPrice(revenue)}`} trend={`${transactions.length} transaksi`} accent="lime" /><MetricCard icon="package" label="Bibit dalam pesanan" value={formatPrice(unitsSold)} trend="ekor" accent="blue" /><MetricCard icon="list" label="Perlu ditindaklanjuti" value={String(pending)} trend="pesanan" accent="purple" /><MetricCard icon="chart" label="Pengeluaran" value={`Rp ${formatShortPrice(expenses.reduce((sum, item) => sum + Number(item.amount), 0))}`} trend={`${activeStock} kantong`} accent="orange" /></div><div className="overview-grid admin-overview-grid"><div className="dashboard-panel overview-panel"><div className="panel-head"><div><h3>Transaksi terbaru</h3><p>Pilih invoice untuk meninjau detail transaksi.</p></div><button className="text-button" onClick={() => setActive('transactions')}>Lihat semua <Icon name="arrow" size={14} /></button></div><TransactionTable transactions={transactions.slice(0, 3)} onStatusChange={null} onInvoice={onInvoice} /></div><div className="quick-admin-actions"><button onClick={() => setActive('stock')}><Icon name="package" size={19} /><span><b>Kelola stok</b><small>Atur jumlah dan status bibit</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('finance')}><Icon name="wallet" size={19} /><span><b>Lihat keuangan</b><small>Pemasukan dan estimasi laba</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('expenses')}><Icon name="chart" size={19} /><span><b>Catat pengeluaran</b><small>Perbarui biaya operasional</small></span><Icon name="arrow" size={15} /></button></div></div><InventoryAttention products={products} onManage={() => setActive('stock')} /></>;
 }
 
 function AdminDashboard({ products, onUpdateProducts, transactions, onUpdateTransactions, expenses, onUpdateExpenses, onLogout, onGoStore }) {
@@ -361,7 +423,7 @@ function AdminDashboard({ products, onUpdateProducts, transactions, onUpdateTran
   const saveProducts = () => { onUpdateProducts(draftProducts); notify('Data stok dan katalog berhasil disimpan'); };
   const addTransaction = (order) => {
     if (order.status === 'Selesai') {
-      onUpdateProducts(products.map((product) => product.size === order.size ? { ...product, stock: Math.max(0, Number(product.stock || 0) - order.quantity), status: Number(product.stock || 0) - order.quantity <= 0 ? 'Habis' : product.status } : product));
+      onUpdateProducts(products.map((product) => product.size === order.size ? deductProductStock(product, order.quantity) : product));
       order.stockDeducted = true;
     }
     onUpdateTransactions([order, ...transactions]); setShowOrder(false); notify('Transaksi berhasil dicatat');
@@ -370,7 +432,7 @@ function AdminDashboard({ products, onUpdateProducts, transactions, onUpdateTran
     const order = transactions.find((item) => item.id === id);
     let nextProducts = products;
     if (status === 'Selesai' && order && !order.stockDeducted) {
-      nextProducts = products.map((product) => product.size === order.size ? { ...product, stock: Math.max(0, Number(product.stock || 0) - Number(order.quantity || 0)), status: Number(product.stock || 0) - Number(order.quantity || 0) <= 0 ? 'Habis' : product.status } : product);
+      nextProducts = products.map((product) => product.size === order.size ? deductProductStock(product, order.quantity) : product);
       onUpdateProducts(nextProducts);
     }
     onUpdateTransactions(transactions.map((item) => item.id === id ? { ...item, status, stockDeducted: item.stockDeducted || status === 'Selesai' } : item));
@@ -423,7 +485,10 @@ function getInitialRoute() {
 function App() {
   const [routePath, setRoutePath] = useState(getInitialRoute);
   const [adminSession, setAdminSession] = useState(() => localStorage.getItem(ADMIN_SESSION_KEY) === 'active');
-  const [products, setProducts] = useState(() => readStored('lelepakabi-products', DEFAULT_PRODUCTS).map((product, index) => ({ ...DEFAULT_PRODUCTS[index], ...product, stock: Number(product.stock ?? DEFAULT_PRODUCTS[index]?.stock ?? 0) })));
+  const [products, setProducts] = useState(() => readStored('lelepakabi-products', DEFAULT_PRODUCTS).map((product, index) => {
+    const merged = { ...DEFAULT_PRODUCTS[index], ...product, stock: Number(product.stock ?? DEFAULT_PRODUCTS[index]?.stock ?? 0) };
+    return { ...merged, category: merged.category || DEFAULT_PRODUCTS[index]?.category || 'Bibit lele', status: merged.status === 'Habis' ? 'Tidak tersedia' : merged.status };
+  }));
   const [transactions, setTransactions] = useState(() => readStored('lelepakabi-transactions', DEFAULT_TRANSACTIONS));
   const [expenses, setExpenses] = useState(() => readStored('lelepakabi-expenses', DEFAULT_EXPENSES));
   useEffect(() => { localStorage.setItem('lelepakabi-products', JSON.stringify(products)); }, [products]);
