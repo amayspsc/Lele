@@ -379,6 +379,14 @@ h1 em, h2 em { font-family: Georgia, serif; font-weight: 400; color: #8bb358; le
   .inventory-attention-list { grid-template-columns: 1fr; }
 }
 
+/* Keep the primary sales-entry action visible on the admin overview. */
+.overview-heading-actions { align-items: center; display: flex; gap: 10px; }
+@media (max-width: 580px) {
+  .overview-heading-actions { align-items: stretch; flex-direction: column-reverse; width: 100%; }
+  .overview-heading-actions .date-chip { align-self: stretch; justify-content: center; }
+  .overview-heading-actions .button { justify-content: center; }
+}
+
 /* Manual sale ledger totals: items, discount and freight */
 .admin-form textarea { background: #fff; border: 1px solid #dfe7da; color: var(--ink); display: block; font: inherit; font-size: 10px; line-height: 1.6; margin-top: 6px; outline: 0; padding: 11px; resize: vertical; width: 100%; }
 .admin-form textarea:focus { border-color: #9fc56c; }
