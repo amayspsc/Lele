@@ -1,37 +1,53 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DEFAULT_EXPENSES,
   DEFAULT_MOVEMENTS,
   DEFAULT_TRANSACTIONS,
   STORAGE_KEYS,
   invoiceTotals,
-  movementsForTransaction,
   nextId,
   nextInvoiceNumber,
   normalizeProducts,
   paymentStatusFor,
   readStored,
-  reversalMovementsFor,
   stockRows,
   writeStored,
 } from './store.js';
 import { addDays, todayISO } from './format.js';
+import { DEMO_MODE, saveCollection } from '../api.js';
 
-const hasOutMovement = (movements, ref, productId) =>
-  movements.some((m) => m.ref === ref && m.productId === productId && m.type === 'Keluar');
+// Keeps one collection in sync. Remote mode writes the whole array to the Worker; demo mode
+// writes to localStorage. The first run after load is skipped when the server already has data.
+function usePersist(name, value, { remote, seeded }) {
+  const firstRun = useRef(true);
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false;
+      if (remote && seeded) return;
+    }
+    if (remote) saveCollection(name, value);
+    else writeStored(STORAGE_KEYS[name], value);
+  }, [value]);
+}
 
 const sorted = (list) => [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : String(a.id).localeCompare(String(b.id))));
 
-export function useAdminData() {
-  const [products, setProducts] = useState(() => normalizeProducts(readStored(STORAGE_KEYS.products, null)));
-  const [transactions, setTransactions] = useState(() => sorted(readStored(STORAGE_KEYS.transactions, DEFAULT_TRANSACTIONS)));
-  const [expenses, setExpenses] = useState(() => sorted(readStored(STORAGE_KEYS.expenses, DEFAULT_EXPENSES)));
-  const [movements, setMovements] = useState(() => sorted(readStored(STORAGE_KEYS.movements, DEFAULT_MOVEMENTS)));
+// `remoteSeed` is null in demo mode. In remote mode it holds the collections loaded from the
+// Worker; a missing collection is `null` and falls back to its default.
+export function useAdminData(remoteSeed = null) {
+  const remote = remoteSeed !== null;
+  const seeded = (name) => remote && Array.isArray(remoteSeed[name]);
+  const load = (name, fallback) => (remote ? remoteSeed[name] ?? fallback : readStored(STORAGE_KEYS[name], fallback));
 
-  useEffect(() => writeStored(STORAGE_KEYS.products, products), [products]);
-  useEffect(() => writeStored(STORAGE_KEYS.transactions, transactions), [transactions]);
-  useEffect(() => writeStored(STORAGE_KEYS.expenses, expenses), [expenses]);
-  useEffect(() => writeStored(STORAGE_KEYS.movements, movements), [movements]);
+  const [products, setProducts] = useState(() => normalizeProducts(load('products', null)));
+  const [transactions, setTransactions] = useState(() => sorted(load('transactions', remote ? [] : DEFAULT_TRANSACTIONS)));
+  const [expenses, setExpenses] = useState(() => sorted(load('expenses', remote ? [] : DEFAULT_EXPENSES)));
+  const [movements, setMovements] = useState(() => sorted(load('movements', remote ? [] : DEFAULT_MOVEMENTS)));
+
+  usePersist('products', products, { remote, seeded: seeded('products') });
+  usePersist('transactions', transactions, { remote, seeded: seeded('transactions') });
+  usePersist('expenses', expenses, { remote, seeded: seeded('expenses') });
+  usePersist('movements', movements, { remote, seeded: seeded('movements') });
 
   const productById = useCallback((id) => products.find((p) => p.id === Number(id)), [products]);
 
@@ -87,13 +103,7 @@ export function useAdminData() {
         return sorted([transaction, ...current]);
       });
 
-      if (created && created.status === 'Selesai') {
-        setMovements((current) => {
-          const ref = created.invoice.number;
-          const extra = movementsForTransaction(created, current).filter((m) => !hasOutMovement(current, ref, m.productId));
-          return extra.length ? sorted([...current, ...extra]) : current;
-        });
-      }
+      // Sales never change inventory. Stock moves only through manual movements (Masuk/Keluar/Penyesuaian).
       return created;
     },
     [buildLines],
@@ -108,16 +118,6 @@ export function useAdminData() {
       const next = { ...target, ...patch, items };
       if ('paidAmount' in patch || patch.items || 'discount' in patch || 'shipping' in patch) {
         next.paymentStatus = paymentStatusFor(next, next.paidAmount);
-      }
-
-      const ref = next.invoice?.number || next.id;
-      if (next.status === 'Selesai') {
-        setMovements((moves) => {
-          const extra = movementsForTransaction(next, moves).filter((m) => !hasOutMovement(moves, ref, m.productId));
-          return extra.length ? sorted([...moves, ...extra]) : moves;
-        });
-      } else if (next.status === 'Dibatalkan' && target.status === 'Selesai') {
-        setMovements((moves) => sorted([...moves, ...reversalMovementsFor(next, moves)]));
       }
 
       return sorted(current.map((tx) => (tx.id === id ? next : tx)));
@@ -135,13 +135,7 @@ export function useAdminData() {
   }, []);
 
   const deleteTransaction = useCallback((id) => {
-    setTransactions((current) => {
-      const target = current.find((tx) => tx.id === id);
-      if (target && target.status === 'Selesai') {
-        setMovements((moves) => sorted([...moves, ...reversalMovementsFor(target, moves)]));
-      }
-      return current.filter((tx) => tx.id !== id);
-    });
+    setTransactions((current) => current.filter((tx) => tx.id !== id));
   }, []);
 
   const addExpense = useCallback((draft) => {
@@ -188,7 +182,9 @@ export function useAdminData() {
 
   const saveProducts = useCallback((next) => setProducts(normalizeProducts(next)), []);
 
+  // Only meaningful in demo mode. In remote mode the button is hidden, so this never wipes real data.
   const resetDemoData = useCallback(() => {
+    if (remote) return;
     setProducts(normalizeProducts(null));
     setTransactions(sorted(DEFAULT_TRANSACTIONS));
     setExpenses(sorted(DEFAULT_EXPENSES));
@@ -198,6 +194,8 @@ export function useAdminData() {
   const stock = useMemo(() => stockRows(products, movements, transactions), [products, movements, transactions]);
 
   return {
+    remote,
+    demo: DEMO_MODE,
     products,
     transactions,
     expenses,

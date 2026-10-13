@@ -340,3 +340,17 @@
   .sheet-head { padding: 20px 16px 15px; }
   .sheet-foot { padding: 14px 16px; }
 }
+
+/* Navigation helpers added for the Lele admin: back button, quick sale entry, sync notice. */
+.admin-top-left { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; min-width: 0; }
+.back-button { align-items: center; background: #fff; border: 1px solid #dfe6dc; border-radius: 999px; color: #34443f; cursor: pointer; display: inline-flex; font: inherit; font-size: 13px; font-weight: 700; gap: 7px; padding: 7px 13px 7px 9px; }
+.back-button:hover { border-color: #b9c9b3; color: #17231f; }
+.back-arrow { display: inline-flex; transform: rotate(180deg); }
+.new-sale-button { gap: 8px; white-space: nowrap; }
+.sync-banner { background: #fff1ee; border: 1px solid #f3c4bb; border-radius: 12px; color: #9a3b26; font-size: 14px; font-weight: 600; margin: 0 0 16px; padding: 12px 16px; }
+
+/* Small screens: the section name is already in the sidebar, so keep the topbar to the actions. */
+@media (max-width: 640px) {
+  .admin-topbar .breadcrumb { display: none; }
+  .new-sale-button { font-size: 13px; padding: 9px 12px; }
+}

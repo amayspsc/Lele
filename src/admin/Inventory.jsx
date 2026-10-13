@@ -139,7 +139,7 @@ export function InventoryPanel({ stock, movements, products, actions, onGoCatalo
 
       <div className="dashboard-panel table-panel">
         <div className="panel-head">
-          <div><h3>Ketersediaan per ukuran</h3><p>Stok siap dijual = stok di kolam − pesanan yang belum dikirim</p></div>
+          <div><h3>Ketersediaan per ukuran</h3><p>Stok siap dijual sama dengan stok di kolam. Pesanan yang belum dikirim hanya ditampilkan sebagai info, tidak mengurangi stok</p></div>
           <span className="last-updated"><span className="green-dot"></span> Tersinkron dengan transaksi</span>
         </div>
         <div className="table-scroll">
@@ -203,7 +203,7 @@ export function InventoryPanel({ stock, movements, products, actions, onGoCatalo
           </div>
         )}
         <div className="panel-footer">
-          <span><Icon name="checkCircle" size={16} /> Transaksi berstatus Selesai otomatis tercatat sebagai stok keluar.</span>
+          <span><Icon name="checkCircle" size={16} /> Penjualan tidak otomatis mengurangi stok. Catat mutasi keluar secara manual saat pesanan dikirim.</span>
         </div>
       </div>
 

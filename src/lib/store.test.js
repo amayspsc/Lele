@@ -11,14 +11,12 @@ import {
   invoiceStatus,
   invoiceTotals,
   monthlySeries,
-  movementsForTransaction,
   nextId,
   nextInvoiceNumber,
   normalizeProducts,
   paymentStatusFor,
   percentageChange,
   reservedQty,
-  reversalMovementsFor,
   stockOnHand,
   stockRows,
   stockSummary,
@@ -125,26 +123,11 @@ describe('stok bibit', () => {
 
   it('menandai ukuran di bawah batas aman', () => {
     const rows = stock();
-    expect(rows.find((r) => r.id === 1)).toMatchObject({ onHand: 39, reserved: 14, available: 25, level: 'safe' });
-    expect(rows.find((r) => r.id === 2)).toMatchObject({ onHand: 20, available: 1, level: 'low' });
-    expect(rows.find((r) => r.id === 3)).toMatchObject({ onHand: 20, available: 8, level: 'low' });
+    expect(rows.find((r) => r.id === 1)).toMatchObject({ onHand: 39, reserved: 14, available: 39, level: 'safe' });
+    expect(rows.find((r) => r.id === 2)).toMatchObject({ onHand: 20, reserved: 19, available: 20, level: 'safe' });
+    expect(rows.find((r) => r.id === 3)).toMatchObject({ onHand: 20, available: 20, level: 'safe' });
     expect(rows.find((r) => r.id === 4)).toMatchObject({ onHand: 0, available: 0, level: 'out' });
-    expect(stockSummary(rows)).toMatchObject({ lowCount: 3, outCount: 1, onHand: 79, available: 34 });
-  });
-
-  it('transaksi selesai menghasilkan mutasi keluar dengan id unik', () => {
-    const tx = findTx('INV/2026/0007');
-    const moves = movementsForTransaction(tx, DEFAULT_MOVEMENTS);
-    expect(moves).toHaveLength(2);
-    expect(moves.map((m) => m.id)).toEqual(['MOV-0013', 'MOV-0014']);
-    expect(moves.every((m) => m.type === 'Keluar' && m.ref === 'INV/2026/0007')).toBe(true);
-  });
-
-  it('pembatalan mengembalikan stok', () => {
-    const tx = findTx('INV/2026/0008');
-    const moves = reversalMovementsFor(tx, DEFAULT_MOVEMENTS);
-    expect(moves).toHaveLength(1);
-    expect(moves[0]).toMatchObject({ type: 'Masuk', qty: 6, productId: 1 });
+    expect(stockSummary(rows)).toMatchObject({ lowCount: 1, outCount: 1, onHand: 79, available: 79 });
   });
 });
 

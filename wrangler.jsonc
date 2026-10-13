@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "lelepakabi",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-01-01",
+  // Static React build from Vite. /api/* runs in the Worker first; everything else is served as an SPA.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // Create the real database once with: npx wrangler d1 create lelepakabi
+  // then paste the returned database_id below before running `npm run deploy`.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lelepakabi",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

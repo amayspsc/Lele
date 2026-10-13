@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mengarahkan ke lelepakabi</title>
+    <script>
+      (() => {
+        const parts = window.location.pathname.split('/').filter(Boolean);
+        const isAdmin = parts.at(-1) === 'adminlele';
+        if (isAdmin) parts.pop();
+        const base = parts.length ? `/${parts.join('/')}` : '';
+        const destination = `${base}/${isAdmin ? '?adminlele=1' : ''}`;
+        window.location.replace(destination);
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Mengarahkan ke lelepakabi…</p>
+  </body>
+</html>

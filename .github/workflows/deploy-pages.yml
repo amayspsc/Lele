@@ -5,6 +5,7 @@ on:
     branches:
       - arena/01a0f2ed-lele
       - arena/01a0f31c-lele
+      - arena/01a0f31e-lele
       - main
   pull_request:
     branches:
@@ -56,10 +57,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # GitHub Pages has no Worker API, so this static build runs in local demo mode
+      # (admin data is kept in the visitor's browser, as before).
       - name: Build website
         run: npm run build
         env:
           GITHUB_ACTIONS: true
+          VITE_DEMO_MODE: 'true'
 
       - name: Upload build artifact
         uses: actions/upload-pages-artifact@v5

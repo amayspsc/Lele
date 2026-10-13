@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState, Field, Icon, Modal, OrderStatusTag, PageHeading, PaymentStatusTag } from '../components/ui.jsx';
 import { InvoiceDocument, InvoiceModalActions } from './InvoiceDocument.jsx';
 import {
@@ -151,7 +151,7 @@ function PaymentModal({ transaction, onClose, onSave }) {
   );
 }
 
-export function TransactionsPanel({ transactions, products, today, actions, onOpenInvoice, onGoInventory }) {
+export function TransactionsPanel({ transactions, products, today, actions, onOpenInvoice, onGoInventory, openSignal = 0 }) {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
   const [paymentFilter, setPaymentFilter] = useState('Semua');
@@ -193,6 +193,11 @@ export function TransactionsPanel({ transactions, products, today, actions, onOp
     setForm(blankForm(products));
     setCreating(true);
   };
+
+  // The dashboard's "Catat penjualan" button bumps openSignal to open the new-sale form.
+  useEffect(() => {
+    if (openSignal > 0) openCreate();
+  }, [openSignal]);
 
   const openEdit = (transaction) => {
     setForm(toForm(transaction));
@@ -300,7 +305,7 @@ export function TransactionsPanel({ transactions, products, today, actions, onOp
           </div>
         )}
         <div className="panel-footer">
-          <span><Icon name="checkCircle" size={16} /> Transaksi berstatus Selesai otomatis mengurangi stok bibit.</span>
+          <span><Icon name="checkCircle" size={16} /> Penjualan tidak mengubah stok. Stok berkurang hanya lewat mutasi stok keluar yang Anda catat manual.</span>
         </div>
       </div>
 

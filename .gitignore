@@ -1,3 +1,6 @@
-node_modules/
-dist/
+# Local Cloudflare / Wrangler state and secrets
+.dev.vars
 .vite/
+.wrangler/
+dist/
+node_modules/

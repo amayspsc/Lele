@@ -1,75 +1,68 @@
 # lelepakabi
 
-Website katalog bibit lele dengan storefront publik dan dashboard admin untuk mengelola
-transaksi, invoice, keuangan, pengeluaran, dan stok bibit.
+Katalog bibit lele per kantong dan dashboard admin untuk mencatat penjualan manual dari WhatsApp, invoice, keuangan, pengeluaran, dan stok.
 
-## Menjalankan
+Lokasi usaha: Jl. Kali Buaran, RT.10/RW.7, Penggilingan, Kec. Cakung, Kota Jakarta Timur, DKI Jakarta 13940 (lihat [Google Maps](https://www.google.com/maps/search/?api=1&query=Bibit+Lele+pak+abi%2C+Jl.+Kali+Buaran%2C+Penggilingan%2C+Cakung%2C+Jakarta+Timur)). Buka setiap hari 07.00–23.00 WIB. WhatsApp: +62 821-2304-0643.
+
+## Arsitektur
+
+- **Frontend**: React + Vite (`src/`), dibangun ke `dist/`.
+- **Backend**: Cloudflare Worker (`worker/index.js`) dengan endpoint JSON di `/api/*`. Static assets disajikan oleh Workers Static Assets; route SPA `/adminlele` dilayani `index.html`.
+- **Database**: Cloudflare D1 (SQLite). Skema di `migrations/`. Data admin disimpan sebagai empat koleksi JSON di tabel `collections` (`products`, `transactions`, `expenses`, `movements`), dengan bentuk yang sama seperti yang dipakai dashboard. `0003_collections.sql` menggantikan tabel lama dari `0001`/`0002`.
+- **Autentikasi admin**: kata sandi dicek di server (secret `ADMIN_PASSWORD`). Sesi berupa cookie `HttpOnly` yang ditandatangani HMAC dan bertahan 30 hari di browser.
+- **Katalog publik**: `GET /api/catalog` hanya mengirim id, ukuran, harga, status, catatan, dan tanda populer. HPP dan stok tidak pernah dikirim ke storefront.
+- **Mode demo** (`VITE_DEMO_MODE=true`, dipakai di GitHub Pages dan tes): semua data disimpan di localStorage browser, tanpa Worker.
+
+## Aturan bisnis
+
+- Penjualan dicatat manual oleh admin lewat tombol **Catat penjualan**. Harga per kantong diambil otomatis dari katalog, lalu total = subtotal − diskon + ongkir. Invoice dibuat otomatis.
+- **Stok tidak berubah otomatis.** Membuat transaksi maupun mengubah statusnya (termasuk **Selesai**) tidak menulis mutasi stok. Stok hanya berubah lewat **mutasi** Masuk / Keluar / Penyesuaian di menu **Stok**. "Dipesan" ditampilkan sebagai info dan tidak mengurangi stok siap jual.
+- Semua tautan WhatsApp pelanggan memakai `6282123040643`.
+- Catatan: penyimpanan koleksi adalah tulis-ulang seluruh koleksi. Jika dua perangkat admin menyimpan bersamaan, perubahan terakhir yang menang. Batas satu koleksi sekitar 900 KB.
+
+## Menjalankan secara lokal (Cloudflare)
 
 ```bash
-npm install
-npm run dev      # http://localhost:5173
+npm ci
+cp .dev.vars.example .dev.vars          # isi ADMIN_PASSWORD untuk lokal
+npm run db:migrate:local                 # buat tabel D1 lokal
+npm run cloudflare:dev                   # build + Worker di http://localhost:8787
 ```
 
-Perintah lain:
+Untuk pengembangan frontend dengan hot reload, jalankan `npm run cloudflare:dev` di satu terminal, lalu `npm run dev` di terminal lain. Vite meneruskan `/api` ke port 8787.
 
-```bash
-npm test         # unit test logika + UI test dashboard (vitest)
-npm run build    # build produksi ke ./dist
-npm run preview  # pratinjau hasil build
-```
+## Deploy ke Cloudflare
 
-## Dashboard admin
+1. Buat database D1 sekali saja:
+   ```bash
+   npx wrangler d1 create lelepakabi
+   ```
+   Salin `database_id` yang dikembalikan ke `wrangler.jsonc` (menggantikan nilai placeholder).
+2. Simpan kata sandi admin sebagai secret (jangan ditulis di repo):
+   ```bash
+   npx wrangler secret put ADMIN_PASSWORD
+   # opsional: npx wrangler secret put SESSION_SECRET
+   ```
+3. Terapkan migrasi ke database remote dan deploy:
+   ```bash
+   npm run db:migrate:remote
+   npm run deploy
+   ```
 
-Klik **Admin** pada header atau **Area admin** di footer. Untuk demo, gunakan:
+Autentikasi Wrangler perlu tersedia di mesin deploy (`npx wrangler login`, atau `CLOUDFLARE_API_TOKEN` dan `CLOUDFLARE_ACCOUNT_ID`).
 
-- Email: `admin@lelepakabi.id`
-- Password: `lelepakabi`
+## Mode demo (GitHub Pages)
 
-### Modul
+GitHub Pages hanya menyajikan file statis dan tidak punya API. Workflow `.github/workflows/deploy-pages.yml` membangun dengan `VITE_DEMO_MODE=true`. Dalam mode ini data disimpan di `localStorage` browser dan kata sandi demo `lelepakabi` berlaku. Mode ini **bukan autentikasi produksi**, karena kata sandi ikut ada di bundle frontend. Gunakan build Cloudflare untuk data sungguhan.
 
-| Menu | Fungsi |
+Dashboard admin dibuka di `/adminlele`. Tidak ada tombol admin di halaman toko.
+
+## Skrip
+
+| Perintah | Fungsi |
 | --- | --- |
-| **Ringkasan** | Metrik kas masuk, laba bersih, piutang, dan kondisi stok bulan berjalan, plus grafik arus kas 6 bulan. |
-| **Transaksi** | Buat, ubah, dan hapus pesanan. Catat pembayaran (DP / lunas), ubah status pesanan, dan saring berdasarkan status. |
-| **Invoice** | Semua tagihan yang terbit otomatis dari transaksi, lengkap dengan umur piutang (belum jatuh tempo, 1–7, 8–30, > 30 hari), cetak PDF, dan kirim via WhatsApp. |
-| **Keuangan** | Arus kas per periode (bulan ini, bulan lalu, 3 bulan, semua): kas masuk, pengeluaran, laba bersih, saldo kas, komposisi biaya, laba kotor setelah HPP, dan daftar piutang. |
-| **Pengeluaran** | Catatan biaya budidaya per kategori (pakan, bibit & indukan, listrik & air, obat, transportasi, operasional) dengan filter bulan dan kategori. |
-| **Stok** | Ketersediaan per ukuran, stok dipesan vs siap dijual, peringatan batas aman, serta riwayat mutasi masuk/keluar/penyesuaian. |
-| **Katalog bibit** | Harga jual, HPP, margin, dan status yang tampil di halaman publik. |
-
-### Aturan bisnis
-
-- **Nomor invoice** otomatis berformat `INV/<tahun>/<nomor urut 4 digit>`.
-- **Stok siap dijual** = stok di kolam − qty pada transaksi berstatus *Menunggu konfirmasi*, *Diproses*, atau *Dikirim*.
-- Transaksi berstatus **Selesai** otomatis membuat mutasi stok *Keluar*; pembatalan atau penghapusan menulis mutasi *Masuk* sebagai pembaliknya.
-- **Laba bersih** = kas yang benar-benar diterima − pengeluaran pada periode yang sama. **Laba kotor** memakai HPP per ukuran bibit.
-- **Saldo kas** = modal awal (`OPENING_CASH`, Rp 12.500.000) + total kas masuk − total pengeluaran.
-- Invoice menjadi **Terlambat** bila melewati `dueDate` dan masih ada sisa tagihan.
-
-Semua data disimpan di `localStorage` browser (kunci `lelepakabi-products`,
-`lelepakabi-transactions`, `lelepakabi-expenses`, `lelepakabi-movements`) dan sudah berisi
-data contoh. Tombol **Muat ulang data contoh** di sidebar mengembalikan data awal.
-
-## Struktur kode
-
-```
-src/
-  lib/format.js         # format rupiah, tanggal, periode
-  lib/store.js          # model data + logika bisnis murni (invoice, stok, keuangan)
-  lib/useAdminData.js   # state React + aksi (CRUD transaksi, pengeluaran, mutasi)
-  components/ui.jsx     # Icon, Logo, Modal, Tag, MetricCard, dsb.
-  admin/                # Dashboard, Overview, Transactions, Invoices, Finance,
-                        # Expenses, Inventory, Catalog, InvoiceDocument
-  main.jsx              # storefront publik + App
-```
-
-## Deployment
-
-GitHub Pages di-deploy lewat **GitHub Actions** (`.github/workflows/deploy-pages.yml`):
-job `test` → `build` → `deploy` memakai `actions/upload-pages-artifact` dan
-`actions/deploy-pages`. Workflow terpicu pada push ke `main`, `arena/01a0f2ed-lele`, dan
-`arena/01a0f31c-lele`. Sumber build Pages harus disetel ke **GitHub Actions**
-(pengaturan *Pages → Build and deployment → Source*).
-
-Situs terbit di <https://amayspsc.github.io/Lele/> — `base: './'` pada `vite.config.js`
-membuat path aset relatif sehingga berjalan di sub-direktori proyek.
+| `npm run dev` | Vite dev server (meneruskan `/api` ke 8787) |
+| `npm run build` | Build frontend ke `dist/` |
+| `npm run cloudflare:dev` | Build lalu jalankan Worker + D1 lokal |
+| `npm run db:migrate:local` / `:remote` | Terapkan migrasi D1 |
+| `npm run deploy` | Build lalu deploy ke Cloudflare |

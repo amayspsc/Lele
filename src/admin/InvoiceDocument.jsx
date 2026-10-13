@@ -14,8 +14,8 @@ export function InvoiceDocument({ transaction, today }) {
         <div>
           <Logo />
           <p className="invoice-issuer">
-            Desa Cimahpar, Bogor — Jawa Barat<br />
-            halo@lelepakabi.id · +62 812-3456-7890
+            Jl. Kali Buaran, RT.10/RW.7, Penggilingan, Cakung<br />
+            Kota Jakarta Timur · WhatsApp +62 821-2304-0643
           </p>
         </div>
         <div className="invoice-meta">
@@ -71,8 +71,7 @@ export function InvoiceDocument({ transaction, today }) {
       <div className="invoice-terms">
         <b>Catatan</b>
         <p>
-          {transaction.note || 'Bibit sudah melalui sortir dan aklimatisasi sebelum dikirim.'}
-          Pembayaran via transfer ke BCA 1234-567-890 a.n. lelepakabi. Garansi hidup berlaku sampai bibit diterima di kolam.
+          {transaction.note || 'Pembayaran dikonfirmasi lewat WhatsApp. Hubungi kami untuk nomor rekening.'}
         </p>
         <span className="invoice-stamp">Dibuat {formatLongDate(today)} · lelepakabi</span>
       </div>

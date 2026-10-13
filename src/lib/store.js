@@ -290,7 +290,10 @@ export const stockRows = (products = [], movements = [], transactions = []) =>
   products.map((product) => {
     const onHand = stockOnHand(product.id, movements);
     const reserved = reservedQty(product.id, transactions);
-    const available = onHand - reserved;
+    // Sales never move stock: pesanan dicatat manual dari WhatsApp, dan stok
+    // hanya berubah lewat mutasi Masuk / Keluar / Penyesuaian. "Dipesan" hanya
+    // informasi, tidak mengurangi jumlah yang siap dijual.
+    const available = onHand;
     const minStock = Number(product.minStock) || 0;
     return {
       ...product,
@@ -312,34 +315,6 @@ export const stockSummary = (rows = []) => ({
   lowCount: rows.filter((r) => r.low).length,
   outCount: rows.filter((r) => r.level === 'out').length,
 });
-
-// Movements generated when a transaction ships stock out of the pond.
-export const movementsForTransaction = (transaction, existing = []) => {
-  const base = existing.reduce((max, entry) => Math.max(max, numericSuffix(entry?.id)), 0);
-  return transaction.items.map((line, index) => ({
-    id: `MOV-${String(base + index + 1).padStart(4, '0')}`,
-    date: transaction.date,
-    productId: line.productId,
-    type: 'Keluar',
-    qty: Number(line.qty) || 0,
-    ref: transaction.invoice?.number || transaction.id,
-    note: 'Pengiriman pesanan',
-  }));
-};
-
-// Reversal entries written back when a transaction is cancelled.
-export const reversalMovementsFor = (transaction, existing = []) => {
-  const base = existing.reduce((max, entry) => Math.max(max, numericSuffix(entry?.id)), 0);
-  return transaction.items.map((line, index) => ({
-    id: `MOV-${String(base + index + 1).padStart(4, '0')}`,
-    date: todayISO(),
-    productId: line.productId,
-    type: 'Masuk',
-    qty: Number(line.qty) || 0,
-    ref: transaction.invoice?.number || transaction.id,
-    note: 'Pembatalan pesanan — stok dikembalikan',
-  }));
-};
 
 // ---------------------------------------------------------------------------
 // Finance

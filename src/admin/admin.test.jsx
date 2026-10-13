@@ -5,8 +5,10 @@ import userEvent from '@testing-library/user-event';
 import { App } from '../main.jsx';
 
 // Freeze "today" so the seeded September 2026 data is the current period.
+// The admin is reached only through the private route, never a button on the storefront.
 beforeEach(() => {
   localStorage.clear();
+  window.history.replaceState({}, '', '/adminlele');
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 8, 30, 9, 0, 0));
 });
@@ -14,10 +16,10 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   cleanup();
+  window.history.replaceState({}, '', '/');
 });
 
 const login = async (user) => {
-  await user.click(screen.getByRole('button', { name: 'Admin' }));
   await user.type(screen.getByLabelText(/Kata sandi/), 'lelepakabi');
   await user.click(screen.getByRole('button', { name: /Masuk ke dashboard/ }));
   await screen.findByRole('heading', { name: /Selamat datang kembali/ });
@@ -32,7 +34,6 @@ describe('masuk ke dashboard admin', () => {
   it('menolak kata sandi salah dan menerima kata sandi demo', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: 'Admin' }));
     await user.type(screen.getByLabelText(/Kata sandi/), 'salah');
     await user.click(screen.getByRole('button', { name: /Masuk ke dashboard/ }));
     expect(screen.getByText(/Kata sandi belum tepat/)).toBeTruthy();
@@ -106,7 +107,7 @@ describe('admin transaksi', () => {
     expect(screen.getByText('INV/2026/0009').closest('tr').textContent).not.toContain('Rp 1.435.000');
   });
 
-  it('mengurangi stok saat transaksi dibuat dengan status selesai', async () => {
+  it('tidak mengubah stok saat transaksi dibuat dengan status selesai', async () => {
     const user = userEvent.setup();
     const { container } = render(<App />);
     await login(user);
@@ -122,15 +123,14 @@ describe('admin transaksi', () => {
     await user.click(screen.getByRole('button', { name: /Buat transaksi/ }));
     await screen.findByText('INV/2026/0012');
 
+    // Inventory is only changed by manual movements. A sale, even a completed one, writes nothing.
     const before = stockOnHandFromStorage(1);
     goTo(container, /^Stok/);
     await screen.findByText('Stok bibit');
     expect(stockOnHandFromStorage(1)).toBe(before);
 
     const movements = JSON.parse(localStorage.getItem('lelepakabi-movements'));
-    const keluar = movements.filter((m) => m.ref === 'INV/2026/0012');
-    expect(keluar).toHaveLength(1);
-    expect(keluar[0]).toMatchObject({ type: 'Keluar', qty: 4, productId: 1 });
+    expect(movements.filter((m) => m.ref === 'INV/2026/0012')).toHaveLength(0);
   });
 });
 
@@ -231,16 +231,15 @@ describe('admin pengeluaran', () => {
 });
 
 describe('admin stok', () => {
-  it('menampilkan stok siap jual setelah dikurangi pesanan berjalan', async () => {
+  it('menampilkan stok siap jual sama dengan stok di kolam, pesanan tidak mengurangi stok', async () => {
     const user = userEvent.setup();
     const { container } = render(<App />);
     await login(user);
     goTo(container, /^Stok/);
 
     await screen.findByText('Stok bibit');
-    expect(screen.getByText('79 kantong')).toBeTruthy();
-    expect(screen.getByText('34 kantong')).toBeTruthy();
-    expect(screen.getByText(/3 ukuran bibit perlu restok/)).toBeTruthy();
+    expect(screen.getAllByText('79 kantong').length).toBeGreaterThan(0);
+    expect(screen.getByText('Dipesan (belum kirim)')).toBeTruthy();
   });
 
   it('menambah stok lewat mutasi masuk', async () => {
@@ -255,7 +254,7 @@ describe('admin stok', () => {
     await user.type(screen.getByLabelText('Jumlah (kantong)'), '10');
     await user.click(screen.getByRole('button', { name: /Simpan mutasi/ }));
 
-    await waitFor(() => expect(screen.getByText('89 kantong')).toBeTruthy());
+    await waitFor(() => expect(screen.getAllByText('89 kantong').length).toBeGreaterThan(0));
   });
 });
 
@@ -280,13 +279,28 @@ describe('admin katalog', () => {
 });
 
 describe('etalase publik', () => {
-  it('menampilkan sisa stok dari data admin', async () => {
-    const user = userEvent.setup();
+  beforeEach(() => window.history.replaceState({}, '', '/'));
+
+  it('tidak menampilkan tombol admin dan memakai WhatsApp yang benar', () => {
+    const { container } = render(<App />);
+    expect(screen.queryByRole('button', { name: 'Admin' })).toBeNull();
+    expect(screen.queryByText('Area admin')).toBeNull();
+    expect(container.innerHTML).toContain('wa.me/6282123040643');
+    expect(container.innerHTML).not.toContain('6281234567890');
+  });
+
+  it('tidak memuat klaim palsu seperti rating atau jumlah pelanggan', () => {
+    const { container } = render(<App />);
+    expect(container.textContent).not.toMatch(/4[.,]9/);
+    expect(container.textContent).not.toMatch(/500\+/);
+  });
+
+  it('menampilkan status dari katalog admin dan menyembunyikan stok internal', async () => {
     render(<App />);
-    await screen.findByText('Ukuran yang pas,');
-    expect(screen.getByText('Menunggu stok masuk')).toBeTruthy();
-    expect(screen.getByText(/Siap kirim · 25 kantong/)).toBeTruthy();
-    expect(screen.getByText(/Sisa 1 kantong/)).toBeTruthy();
+    expect(screen.getByText('Pilih ukuran bibit')).toBeTruthy();
+    expect(await screen.findByText('4–5 cm', { selector: 'h3' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Tidak tersedia/ }).disabled).toBe(true);
+    expect(screen.queryByText(/kantong tersisa|Sisa \d+ kantong/)).toBeNull();
   });
 });
 

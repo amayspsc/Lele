@@ -1,0 +1,3 @@
+ADMIN_PASSWORD=lelepakabi
+# Optional: separate key for signing admin sessions. Defaults to ADMIN_PASSWORD.
+# SESSION_SECRET=change-me-to-a-long-random-string
