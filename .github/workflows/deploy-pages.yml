@@ -39,6 +39,9 @@ jobs:
         run: npm run build
         env:
           GITHUB_ACTIONS: true
+          # GitHub Pages has no Worker API, so this static build runs in local demo mode.
+          # The Cloudflare build (npm run deploy) leaves this unset and uses /api.
+          VITE_DEMO_MODE: 'true'
 
       - name: Upload build artifact
         uses: actions/upload-pages-artifact@v3

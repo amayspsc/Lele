@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { api } from './api';
 import './styles.css';
 
 const STORE_ADDRESS = 'Jl. Kali Buaran, RT.10/RW.7, Penggilingan, Kec. Cakung, Kota Jakarta Timur, DKI Jakarta 13940';
 const STORE_MAP_URL = 'https://www.google.com/maps/search/?api=1&query=Bibit+Lele+pak+abi%2C+Jl.+Kali+Buaran%2C+Penggilingan%2C+Cakung%2C+Jakarta+Timur';
 const STORE_WA_URL = 'https://wa.me/6282123040643';
+const WA_CHAT_URL = STORE_WA_URL;
+// Demo mode is used for the static GitHub Pages build only. The Cloudflare build talks to /api.
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+const DEMO_PASSWORD = 'lelepakabi';
 const LOW_STOCK_THRESHOLD = 10;
 const STOCK_STATUSES = ['Tersedia', 'Stok menipis', 'Pre-order', 'Tidak tersedia'];
 const DEFAULT_STOCK_CATEGORIES = ['Bibit kecil', 'Bibit favorit', 'Bibit pembesaran', 'Bibit ukuran besar'];
@@ -13,7 +18,7 @@ const DEFAULT_PRODUCTS = [
   { id: 1, size: '3–4 cm', category: 'Bibit kecil', price: 180000, status: 'Tersedia', stock: 120, note: 'Cocok untuk pemula', accent: 'mint', sold: '1.000 ekor' },
   { id: 2, size: '4–5 cm', category: 'Bibit favorit', price: 215000, status: 'Tersedia', stock: 86, note: 'Paling banyak dipesan', accent: 'orange', sold: '1.000 ekor', popular: true },
   { id: 3, size: '5–6 cm', category: 'Bibit pembesaran', price: 260000, status: 'Pre-order', stock: 34, note: 'Lebih cepat dibesarkan', accent: 'blue', sold: '1.000 ekor' },
-  { id: 4, size: '7–8 cm', category: 'Bibit ukuran besar', price: 340000, status: 'Tidak tersedia', stock: 0, note: 'Stok masuk 04 Okt 2026', accent: 'violet', sold: '1.000 ekor' },
+  { id: 4, size: '7–8 cm', category: 'Bibit ukuran besar', price: 340000, status: 'Tidak tersedia', stock: 0, note: 'Stok sedang kosong', accent: 'violet', sold: '1.000 ekor' },
 ];
 
 const formatPrice = (value) => new Intl.NumberFormat('id-ID').format(Number(value) || 0);
@@ -87,99 +92,95 @@ function Header() {
   };
   return <header className="site-header">
     <div className="container header-inner">
-      <button className="brand-button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><Logo /></button>
-      <nav className={`main-nav ${open ? 'open' : ''}`}>
-        <button onClick={() => goTo('produk')}>Katalog bibit</button>
-        <button onClick={() => goTo('cerita')}>Tentang kami</button>
+      <button className="brand-button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Kembali ke atas"><Logo /></button>
+      <nav className={`main-nav ${open ? 'open' : ''}`} aria-label="Navigasi utama">
+        <button onClick={() => goTo('produk')}>Katalog</button>
         <button onClick={() => goTo('cara-pesan')}>Cara pesan</button>
         <button onClick={() => goTo('lokasi')}>Lokasi</button>
       </nav>
       <div className="header-actions">
-        <a className="header-cta" href="https://wa.me/6282123040643?text=Halo%20lelepakabi%2C%20saya%20ingin%20pesan%20bibit%20lele." target="_blank" rel="noreferrer">Pesan bibit <Icon name="arrow" size={16} /></a>
+        <a className="header-cta" href={WA_CHAT_URL} target="_blank" rel="noreferrer">Chat WhatsApp <Icon name="arrow" size={15} /></a>
       </div>
-      <button className="menu-button" aria-label="Buka menu" onClick={() => setOpen(!open)}><Icon name={open ? 'close' : 'menu'} size={23} /></button>
+      <button className="menu-button" aria-label={open ? 'Tutup menu' : 'Buka menu'} onClick={() => setOpen(!open)}><Icon name={open ? 'close' : 'menu'} size={23} /></button>
     </div>
   </header>;
 }
 
-function FishIllustration() {
-  return <div className="fish-art" aria-hidden="true">
-    <div className="art-glow"></div>
-    <div className="water-line line-one"></div><div className="water-line line-two"></div><div className="water-line line-three"></div>
-    <svg className="fish-svg" viewBox="0 0 620 380" fill="none">
-      <defs>
-        <linearGradient id="fishGradient" x1="180" y1="100" x2="500" y2="310" gradientUnits="userSpaceOnUse"><stop stopColor="#e1f9a5"/><stop offset="1" stopColor="#75bd4d"/></linearGradient>
-        <linearGradient id="finGradient" x1="0" y1="0" x2="1" y2="1"><stop stopColor="#96d760"/><stop offset="1" stopColor="#3d8e57"/></linearGradient>
-        <filter id="fishShadow" x="-20%" y="-30%" width="150%" height="180%"><feDropShadow dx="0" dy="20" stdDeviation="13" floodColor="#000" floodOpacity=".22"/></filter>
-      </defs>
-      <g filter="url(#fishShadow)" transform="rotate(-7 310 190)">
-        <path d="M181 188C220 112 326 88 417 124c45 18 85 52 108 93-26 40-66 75-112 93-92 36-193 11-232-67-10-20-10-35 0-55Z" fill="url(#fishGradient)"/>
-        <path d="M182 190 87 118c-18-13-41 5-34 26l26 71-26 72c-7 21 16 39 34 26l95-70c20-15 20-38 0-53Z" fill="url(#finGradient)"/>
-        <path d="M230 145c29-34 57-48 91-54l-11 58c-27 3-53 12-76 30l-4-34Z" fill="#85c957"/>
-        <path d="M233 246c26 19 54 30 82 34l8 57c-39-10-69-28-96-58l6-33Z" fill="#62a84d"/>
-        <path d="M441 130c32 17 60 43 83 73-21 31-46 55-75 72 16-35 20-105-8-145Z" fill="#559d56"/>
-        <ellipse cx="456" cy="181" rx="15" ry="20" fill="#173e3a"/><circle cx="460" cy="176" r="5" fill="#f5ffd0"/>
-        <path d="M383 230c-23 10-47 12-72 5" stroke="#377b4c" strokeWidth="7" strokeLinecap="round"/>
-        <path d="M178 194c51 12 93 22 141 22 59 0 109-18 154-47" stroke="#f0ffba" strokeOpacity=".55" strokeWidth="4" strokeLinecap="round"/>
-        <path d="M205 177c8-13 16-23 27-33M199 211c9 14 19 24 30 33" stroke="#4b9a51" strokeWidth="4" strokeLinecap="round"/>
-      </g>
-    </svg>
-    <div className="art-caption"><span>01</span><span>Budidaya terkontrol</span></div>
-  </div>;
+function PriceList({ products, status }) {
+  return <aside className="price-card" aria-label="Daftar harga bibit">
+    <div className="price-card-head"><span>Ukuran</span><span>Harga / kantong</span></div>
+    {status === 'ready' && products.map((product) => <div className="price-row" key={product.id}>
+      <div><b>{product.size}</b><small>{product.category || 'Bibit lele'}</small></div>
+      <div className="price-row-end"><strong>Rp {formatPrice(product.price)}</strong><StatusPill status={getStockStatus(product)} small /></div>
+    </div>)}
+    {status === 'loading' && <div className="price-card-empty">Memuat harga…</div>}
+    {status === 'error' && <div className="price-card-empty">Harga belum bisa dimuat. Silakan cek lewat WhatsApp.</div>}
+    <a className="price-card-foot" href={WA_CHAT_URL} target="_blank" rel="noreferrer">Tanya stok lewat WhatsApp <Icon name="arrow" size={14} /></a>
+  </aside>;
 }
 
-function Hero() {
-  return <>
-    <section className="hero">
-      <div className="container hero-grid">
-        <div className="hero-copy">
-          <div className="eyebrow"><span className="pulse-dot"></span> Bibit siap kirim hari ini</div>
-          <h1>Mulai dari bibit,<br /><em>panen lebih dekat.</em></h1>
-          <p className="hero-text">Bibit lele sehat, seragam, dan terawat untuk bantu usaha budidaya kamu tumbuh lebih pasti.</p>
-          <div className="hero-buttons">
-            <a className="button button-primary" href="#produk">Lihat katalog <Icon name="arrow" size={17} /></a>
-            <a className="button button-ghost" href="https://wa.me/6282123040643?text=Halo%20lelepakabi%2C%20boleh%20konsultasi%20tentang%20bibit%20lele%3F" target="_blank" rel="noreferrer"><Icon name="message" size={17} /> Konsultasi gratis</a>
-          </div>
-          <div className="hero-proof">
-            <div className="avatar-stack"><span className="av av-one">AR</span><span className="av av-two">DS</span><span className="av av-three">BY</span><span className="av-count">+</span></div>
-            <div><div className="stars">★★★★★ <strong>4.9</strong></div><p>Dipercaya 500+ pembudidaya</p></div>
-          </div>
+function Hero({ products, status }) {
+  return <section className="hero">
+    <div className="container hero-grid">
+      <div className="hero-copy">
+        <p className="hero-kicker">Penjualan bibit lele · Cakung, Jakarta Timur</p>
+        <h1>Bibit lele per kantong, dipesan lewat WhatsApp.</h1>
+        <p className="hero-text">Pilih ukuran yang sesuai dengan kolam Anda. Admin akan mengonfirmasi stok, total harga, dan pengiriman di chat.</p>
+        <div className="hero-buttons">
+          <a className="button button-primary" href="#produk">Pilih ukuran <Icon name="arrow" size={16} /></a>
+          <a className="button button-ghost" href={WA_CHAT_URL} target="_blank" rel="noreferrer"><Icon name="message" size={16} /> Tanya dulu</a>
         </div>
-        <FishIllustration />
       </div>
-    </section>
-    <div className="trust-strip"><div className="container trust-grid">
-      <div className="trust-item"><span className="trust-icon"><Icon name="checkCircle" size={21} /></span><div><b>Sehat & seragam</b><small>Sortir sebelum kirim</small></div></div>
-      <div className="trust-item"><span className="trust-icon"><Icon name="truck" size={21} /></span><div><b>Pengiriman aman</b><small>Ke Jabodetabek & sekitarnya</small></div></div>
-      <div className="trust-item"><span className="trust-icon"><Icon name="message" size={21} /></span><div><b>Respons cepat</b><small>Konsultasi via WhatsApp</small></div></div>
-      <div className="trust-note"><span>✓</span> Garansi hidup sampai kolam</div>
-    </div></div>
-  </>;
+      <PriceList products={products} status={status} />
+    </div>
+  </section>;
+}
+
+function FactsStrip() {
+  const facts = [
+    ['Harga per kantong', 'Ukuran 3–8 cm, isi ± 1.000 ekor'],
+    ['Stok dikonfirmasi', 'Admin cek sebelum pesanan dibuat'],
+    ['Buka setiap hari', '07.00–23.00 WIB'],
+    ['Datang langsung', 'Penggilingan, Cakung, Jakarta Timur'],
+  ];
+  return <div className="facts-strip"><div className="container facts-grid">
+    {facts.map(([title, text]) => <div key={title}><b>{title}</b><span>{text}</span></div>)}
+  </div></div>;
 }
 
 function ProductCard({ product, onOrder }) {
   const status = getStockStatus(product);
   const unavailable = status === 'Tidak tersedia';
-  return <article className={`product-card ${product.popular ? 'is-popular' : ''} ${unavailable ? 'is-soldout' : ''}`}>
-    {product.popular && <div className="popular-ribbon"><Icon name="star" size={12} /> Pilihan pembudidaya</div>}
-    <div className={`product-top ${product.accent}`}><div className="product-orb orb-one"></div><div className="product-orb orb-two"></div><span className="size-badge">Ukuran</span><strong>{product.size}</strong><span className="fish-count">× 1.000 ekor</span></div>
-    <div className="product-body">
-      <div className="product-status"><StatusPill status={status} /><span className="note">{product.note}</span></div>
-      <span className="product-category-label">{product.category || 'Bibit lele'}</span>
-      <div className="price-line"><span className="currency">Rp</span><strong>{formatPrice(product.price)}</strong></div>
-      <div className="price-unit">per kantong <span>·</span> isi ± 1.000 ekor</div>
-      <button disabled={unavailable} onClick={() => onOrder(product)} className="product-button">{unavailable ? 'Tidak tersedia' : status === 'Pre-order' ? 'Tanya pre-order' : status === 'Stok menipis' ? 'Pesan sebelum habis' : 'Pesan ukuran ini'} <Icon name="arrow" size={16} /></button>
+  const label = unavailable ? 'Tidak tersedia' : status === 'Pre-order' ? 'Tanya pre-order' : status === 'Stok menipis' ? 'Pesan sebelum habis' : 'Pesan ukuran ini';
+  return <article className={`product-card accent-${product.accent || 'mint'} ${unavailable ? 'is-unavailable' : ''}`}>
+    <div className="product-head">
+      <div><span className="product-category">{product.category || 'Bibit lele'}</span><h3>{product.size}</h3></div>
+      <StatusPill status={status} small />
     </div>
+    <p className="product-note">{product.note}</p>
+    <div className="product-price"><span>Rp</span><strong>{formatPrice(product.price)}</strong><small>per kantong</small></div>
+    <button disabled={unavailable} onClick={() => onOrder(product)} className="product-button">{label} <Icon name="arrow" size={15} /></button>
   </article>;
 }
 
-function Catalog({ products, onOrder }) {
+function Catalog({ products, status, onOrder }) {
   const available = products.filter((product) => ['Tersedia', 'Stok menipis'].includes(getStockStatus(product))).length;
   return <section className="catalog-section" id="produk">
     <div className="container">
-      <div className="section-heading catalog-heading"><div><div className="section-kicker">Katalog bibit <span></span></div><h2>Ukuran yang pas,<br /><em>hasil yang jelas.</em></h2></div><div className="heading-side"><p>Semua bibit dihitung per 1.000 ekor dan sudah melalui proses sortir agar lebih seragam saat ditebar.</p><div className="stock-summary"><span className="stock-live"></span> {available} ukuran tersedia hari ini</div></div></div>
-      <div className="products-grid">{products.map((product) => <ProductCard key={product.id} product={product} onOrder={onOrder} />)}</div>
-      <div className="catalog-bottom"><div className="mini-rule"></div><p>Butuh jumlah besar atau ukuran khusus?</p><a href="https://wa.me/6282123040643?text=Halo%20lelepakabi%2C%20saya%20ingin%20konsultasi%20jumlah%20besar." target="_blank" rel="noreferrer">Bicarakan dengan kami <Icon name="arrow" size={15} /></a></div>
+      <div className="section-heading">
+        <div>
+          <h2>Pilih ukuran bibit</h2>
+          <p>Harga per kantong. Stok bisa berubah sewaktu-waktu, jadi konfirmasi terakhir dilakukan lewat WhatsApp.</p>
+        </div>
+        {status === 'ready' && <span className="stock-summary">{available} dari {products.length} ukuran tersedia</span>}
+      </div>
+      {status === 'loading' && <div className="catalog-message">Memuat katalog…</div>}
+      {status === 'error' && <div className="catalog-message is-error">Katalog belum bisa dimuat. Hubungi kami lewat WhatsApp untuk cek stok.</div>}
+      {status === 'ready' && <div className="products-grid">{products.map((product) => <ProductCard key={product.id} product={product} onOrder={onOrder} />)}</div>}
+      <div className="catalog-bottom">
+        <p>Butuh jumlah besar atau ukuran khusus?</p>
+        <a href={`${WA_CHAT_URL}?text=${encodeURIComponent('Halo, saya ingin konsultasi pembelian dalam jumlah besar.')}`} target="_blank" rel="noreferrer">Bicarakan dengan kami <Icon name="arrow" size={15} /></a>
+      </div>
     </div>
   </section>;
 }
@@ -187,66 +188,78 @@ function Catalog({ products, onOrder }) {
 function LocationSection() {
   return <section className="location-section" id="lokasi">
     <div className="container location-grid">
-      <div className="location-copy">
-        <div className="section-kicker">Mampir ke tempat kami <span></span></div>
-        <h2>Temukan bibit<br /><em>langsung dari Cakung.</em></h2>
-        <p>Datang untuk melihat bibit dan konsultasi langsung. Sebaiknya chat dulu sebelum berkunjung agar kami bisa menyiapkan pesananmu.</p>
-        <div className="location-info">
-          <div className="location-info-icon"><Icon name="mapPin" size={18} /></div>
-          <div><small>ALAMAT KAMI</small><b>{STORE_ADDRESS}</b></div>
-        </div>
-        <div className="location-info">
-          <div className="location-info-icon"><Icon name="clock" size={18} /></div>
-          <div><small>JAM BUKA</small><b>Setiap hari · 07.00–23.00 WIB</b></div>
-        </div>
+      <div>
+        <h2>Datang langsung ke lokasi kami</h2>
+        <p>Sebaiknya chat dulu sebelum berkunjung agar kami bisa menyiapkan bibit dan pesanan Anda.</p>
+      </div>
+      <div className="location-card">
+        <div className="location-row"><Icon name="mapPin" size={18} /><div><small>Alamat</small><b>{STORE_ADDRESS}</b></div></div>
+        <div className="location-row"><Icon name="clock" size={18} /><div><small>Jam buka</small><b>Setiap hari, 07.00–23.00 WIB</b></div></div>
         <div className="location-actions">
-          <a className="button button-dark" href={STORE_MAP_URL} target="_blank" rel="noreferrer">Petunjuk arah <Icon name="arrow" size={16} /></a>
-          <a className="location-wa" href={`${STORE_WA_URL}?text=${encodeURIComponent('Halo Pak Abi, saya mau tanya lokasi dan ketersediaan bibit lele.')}`} target="_blank" rel="noreferrer"><Icon name="message" size={15} /> Chat sebelum datang</a>
+          <a className="button button-dark" href={STORE_MAP_URL} target="_blank" rel="noreferrer">Buka di Google Maps <Icon name="external" size={15} /></a>
+          <a className="button button-outline" href={`${WA_CHAT_URL}?text=${encodeURIComponent('Halo, saya mau tanya lokasi dan ketersediaan bibit lele.')}`} target="_blank" rel="noreferrer">Chat sebelum datang</a>
         </div>
       </div>
-      <a className="location-map-card" href={STORE_MAP_URL} target="_blank" rel="noreferrer" aria-label="Buka lokasi Bibit Lele Pak Abi di Google Maps">
-        <div className="map-grid-lines"><i></i><i></i><i></i><i></i><i></i></div>
-        <div className="map-road road-one"></div><div className="map-road road-two"></div><div className="map-road road-three"></div>
-        <span className="map-neighborhood neighborhood-one">PENGGILINGAN</span><span className="map-neighborhood neighborhood-two">KALI BUARAN</span>
-        <span className="map-pin"><Icon name="mapPin" size={25} /></span>
-        <span className="map-label"><b>Bibit Lele pak abi</b><small>Cakung · Jakarta Timur</small></span>
-        <span className="map-open-link">Lihat peta <Icon name="external" size={13} /></span>
-      </a>
     </div>
   </section>;
 }
 
-function Story() {
-  return <section className="story-section" id="cerita"><div className="container story-grid">
-    <div className="story-visual"><div className="story-image"><div className="image-noise"></div><div className="pond-shape shape-one"></div><div className="pond-shape shape-two"></div><div className="pond-fish">🐟</div><span className="image-label">CAKUNG · JAKARTA TIMUR<br /><small>EST. 2018</small></span></div><div className="experience-card"><strong>8</strong><span>tahun merawat<br />bibit lele</span></div></div>
-    <div className="story-copy"><div className="section-kicker">Kenapa lelepakabi <span></span></div><h2>Bukan cuma jual bibit.<br /><em>Kami ikut tumbuh.</em></h2><p>Berawal dari budidaya sederhana di Cakung, Jakarta Timur, kami percaya hasil yang baik selalu dimulai dari bibit yang dirawat dengan baik.</p><p>Setiap bibit melewati pemantauan air, pakan, dan sortir harian. Karena kami ingin kamu menerima lebih dari sekadar ikan—tapi awal yang baik untuk panenmu.</p><div className="story-signature"><span className="signature-mark">lp</span><div><b>Tim lelepakabi</b><small>Dirawat dengan hati, dikirim dengan pasti.</small></div></div></div>
-  </div></section>;
-}
-
 function HowToOrder() {
-  const steps = [{ no: '01', title: 'Pilih ukuran', text: 'Sesuaikan ukuran bibit dengan target dan kolam kamu.' }, { no: '02', title: 'Chat kami', text: 'Klik pesan, lalu ceritakan kebutuhan budidayamu.' }, { no: '03', title: 'Bibit berangkat', text: 'Kami sortir dan kemas aman sebelum dikirim.' }];
-  return <section className="how-section" id="cara-pesan"><div className="container"><div className="how-head"><div><div className="section-kicker">Semudah itu <span></span></div><h2>Dari chat ke kolam,<br /><em>tanpa ribet.</em></h2></div><a className="button button-dark" href="https://wa.me/6282123040643?text=Halo%20lelepakabi%2C%20saya%20mau%20pesan%20bibit%20lele." target="_blank" rel="noreferrer">Mulai pesan <Icon name="arrow" size={16} /></a></div><div className="steps-grid">{steps.map((step, i) => <div className="step" key={step.no}><div className="step-top"><span>{step.no}</span>{i < 2 && <div className="step-line"></div>}</div><h3>{step.title}</h3><p>{step.text}</p></div>)}</div></div></section>;
+  const steps = [
+    ['Pilih ukuran', 'Sesuaikan ukuran bibit dengan target dan kondisi kolam Anda.'],
+    ['Kirim pesan', 'Tombol pesan membuka WhatsApp dengan ukuran yang Anda pilih.'],
+    ['Konfirmasi', 'Admin mengecek stok dan menghitung total, termasuk diskon dan ongkir bila ada.'],
+  ];
+  return <section className="how-section" id="cara-pesan">
+    <div className="container">
+      <h2>Cara pesan</h2>
+      <ol className="steps-grid">
+        {steps.map(([title, text], index) => <li className="step" key={title}><span className="step-number">{index + 1}</span><h3>{title}</h3><p>{text}</p></li>)}
+      </ol>
+    </div>
+  </section>;
 }
 
 function Footer() {
-  return <footer className="site-footer"><div className="container"><div className="footer-main"><div><Logo light /><p>Bibit sehat untuk<br />panen yang lebih dekat.</p></div><div className="footer-links"><div><b>Jelajahi</b><button onClick={() => document.getElementById('produk')?.scrollIntoView({ behavior: 'smooth' })}>Katalog bibit</button><button onClick={() => document.getElementById('cerita')?.scrollIntoView({ behavior: 'smooth' })}>Tentang kami</button><button onClick={() => document.getElementById('lokasi')?.scrollIntoView({ behavior: 'smooth' })}>Lokasi</button></div><div><b>Hubungi</b><a href={STORE_WA_URL} target="_blank" rel="noreferrer">WhatsApp · +62 821-2304-0643</a><a href="mailto:halo@lelepakabi.id">halo@lelepakabi.id</a></div><div><b>Lokasi</b><span>Cakung, Jakarta Timur</span><span>Setiap hari · 07.00–23.00 WIB</span></div></div></div><div className="footer-bottom"><span>© 2026 lelepakabi. Dibuat untuk pembudidaya.</span><a href={STORE_MAP_URL} target="_blank" rel="noreferrer">Penggilingan · Jakarta Timur</a><span>Instagram · TikTok</span></div></div></footer>;
+  return <footer className="site-footer">
+    <div className="container footer-inner">
+      <div><Logo light /><p>Penjualan bibit lele per kantong di Cakung, Jakarta Timur.</p></div>
+      <div className="footer-col"><b>Kontak</b><a href={WA_CHAT_URL} target="_blank" rel="noreferrer">WhatsApp +62 821-2304-0643</a><a href={STORE_MAP_URL} target="_blank" rel="noreferrer">Alamat di Google Maps</a></div>
+      <div className="footer-col"><b>Jam buka</b><span>Setiap hari, 07.00–23.00 WIB</span></div>
+    </div>
+    <div className="container footer-bottom"><span>© 2026 lelepakabi</span></div>
+  </footer>;
 }
 
 function AdminLoginPage({ onLogin, onBack }) {
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(false);
-  const submit = (event) => {
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async (event) => {
     event.preventDefault();
-    if (password === 'lelepakabi') onLogin();
-    else setError(true);
+    if (busy || !password) return;
+    setBusy(true);
+    setError('');
+    try {
+      await onLogin(password);
+    } catch (loginError) {
+      setError(loginError.message || 'Gagal masuk. Coba lagi.');
+      setBusy(false);
+    }
   };
   return <main className="admin-login-page">
-    <header className="admin-login-header"><button className="brand-button" onClick={onBack} aria-label="Kembali ke toko"><Logo /></button><span className="admin-login-badge"><Icon name="lock" size={14} /> ADMIN</span></header>
-    <div className="admin-login-layout">
-      <section className="admin-login-intro"><span className="eyebrow"><span className="pulse-dot"></span> Ruang kerja lelepakabi</span><h1>Kelola usaha,<br /><em>lebih terarah.</em></h1><p>Masuk untuk mengatur transaksi, stok bibit, invoice, dan catatan usaha.</p><div className="login-location-note"><Icon name="mapPin" size={16} /> Penggilingan · Jakarta Timur</div></section>
-      <section className="admin-login-card"><div className="login-icon"><Icon name="lock" size={21} /></div><div className="section-kicker">Akses administrator <span></span></div><h2>Selamat datang,<br /><em>admin.</em></h2><p>Gunakan kata sandi administrator untuk melanjutkan.</p><form onSubmit={submit}><label>Email admin<input value="admin@lelepakabi.id" readOnly /></label><label>Kata sandi<div className="password-field"><input type="password" autoFocus value={password} onChange={(event) => { setPassword(event.target.value); setError(false); }} placeholder="Masukkan kata sandi" autoComplete="current-password" /><Icon name="lock" size={15} /></div></label>{error && <div className="login-error" role="alert">Kata sandi belum tepat. Coba lagi.</div>}<button className="button button-dark full-button" type="submit">Masuk ke dashboard <Icon name="arrow" size={16} /></button></form><button className="login-back-link" onClick={onBack}>Kembali ke halaman toko</button></section>
+    <div className="admin-login-card">
+      <button className="brand-button admin-login-brand" onClick={onBack} aria-label="Kembali ke toko"><Logo /></button>
+      <h1>Masuk ke dashboard</h1>
+      <p>Khusus admin lelepakabi. Sesi tetap aktif di perangkat ini sampai Anda keluar.</p>
+      <form onSubmit={submit} className="admin-login-form">
+        <label>Kata sandi<input type="password" autoFocus value={password} onChange={(event) => { setPassword(event.target.value); setError(''); }} autoComplete="current-password" /></label>
+        {error && <div className="form-error" role="alert">{error}</div>}
+        <button className="button button-dark full-button" type="submit" disabled={busy || !password}>{busy ? 'Memeriksa…' : 'Masuk'} {!busy && <Icon name="arrow" size={16} />}</button>
+      </form>
+      {DEMO_MODE && <p className="demo-hint">Mode demo lokal. Kata sandi: <code>{DEMO_PASSWORD}</code></p>}
+      <button className="login-back-link" onClick={onBack}>Kembali ke halaman toko</button>
     </div>
-    <footer className="admin-login-footer">Akses internal · lelepakabi</footer>
   </main>;
 }
 
@@ -276,12 +289,12 @@ function AdminSidebar({ active, setActive, onLogout, onGoStore, pendingCount }) 
     <div className="admin-profile"><div className="profile-avatar">LP</div><div><b>Admin lelepakabi</b><span>Administrator</span></div><Icon name="chevron" size={15} /></div>
     <div className="sidebar-section"><span className="sidebar-label">Workspace</span>{items.map(([key, label, icon]) => <button key={key} className={`${active === key ? 'active' : ''} ${key === 'store' ? 'mobile-store-link' : ''}`} onClick={() => key === 'store' ? onGoStore() : setActive(key)} aria-label={key === 'store' ? 'Kembali ke toko' : label}><Icon name={icon} size={17} /> {label}{key === 'transactions' && pendingCount > 0 && <span className="nav-count alert">{pendingCount}</span>}</button>)}</div>
     <div className="sidebar-section sidebar-bottom"><span className="sidebar-label">Toko</span><button onClick={onGoStore}><Icon name="external" size={17} /> Lihat toko</button></div>
-    <button className="logout-button" onClick={onLogout}><Icon name="logout" size={17} /> Keluar dari dashboard</button><div className="sidebar-version">lelepakabi v1.0 <span>•</span> Jakarta Timur</div>
+    <button className="logout-button" onClick={onLogout}><Icon name="logout" size={17} /> Keluar dari dashboard</button>
   </aside>;
 }
 
 function MetricCard({ icon, label, value, trend, accent }) {
-  return <div className={`metric-card ${accent}`}><div className="metric-top"><span className="metric-icon"><Icon name={icon} size={18} /></span>{trend && <span className="trend"><Icon name="arrowUp" size={12} /> {trend}</span>}</div><span className="metric-label">{label}</span><strong>{value}</strong><div className="metric-spark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>;
+  return <div className={`metric-card ${accent}`}><div className="metric-top"><span className="metric-icon"><Icon name={icon} size={18} /></span>{trend && <span className="trend"><Icon name="arrowUp" size={12} /> {trend}</span>}</div><span className="metric-label">{label}</span><strong>{value}</strong></div>;
 }
 
 function PageHeading({ eyebrow, title, description, action }) {
@@ -347,13 +360,21 @@ function OrderModal({ products, onClose, onSave }) {
   const discount = Math.min(subtotal, form.discountType === 'Persen' ? Math.round(subtotal * normalizedDiscountInput / 100) : normalizedDiscountInput);
   const shippingFee = Math.max(0, Number(form.shippingFee) || 0);
   const total = subtotal - discount + shippingFee;
-  const submit = (event) => {
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const submit = async (event) => {
     event.preventDefault();
-    if (!form.customer.trim() || !form.phone.trim() || !selected || Number(form.quantity) < 1) return;
+    if (saving || !form.customer.trim() || !form.phone.trim() || !selected || Number(form.quantity) < 1) return;
     const today = new Date();
     const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const id = `trx-${Date.now()}`;
-    onSave({ id, invoice: `INV/LP/${today.getFullYear()}/${String(Date.now()).slice(-5)}`, date, customer: form.customer.trim(), phone: form.phone.trim(), size: selected.size, category: selected.category || 'Bibit lele', quantity, unitPrice, subtotal, discount, discountType: form.discountType, discountValue: normalizedDiscountInput, shippingFee, total, note: form.note.trim(), status: form.status, payment: form.payment });
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onSave({ id: `trx-${Date.now()}`, invoice: `INV/LP/${today.getFullYear()}/${String(Date.now()).slice(-5)}`, date, customer: form.customer.trim(), phone: form.phone.trim(), size: selected.size, category: selected.category || 'Bibit lele', quantity, unitPrice, subtotal, discount, discountType: form.discountType, discountValue: normalizedDiscountInput, shippingFee, total, note: form.note.trim(), status: form.status, payment: form.payment });
+    } catch (error) {
+      setSaveError(error.message || 'Penjualan belum tersimpan. Coba lagi.');
+      setSaving(false);
+    }
   };
   return <div className="modal-backdrop" onMouseDown={onClose}><div className="admin-dialog sale-dialog" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><Icon name="close" size={18} /></button><span className="page-overline">PENJUALAN WHATSAPP / MANUAL</span><h2>Catat penjualan bibit</h2><p>Input pesanan yang sudah dikonfirmasi admin. Harga produk terisi otomatis; inventaris tidak berubah dari transaksi ini.</p>
     <form className="admin-form" onSubmit={submit}>
@@ -364,7 +385,7 @@ function OrderModal({ products, onClose, onSave }) {
       <div className="form-row"><label>Status pembayaran<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })}>{TRANSACTION_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></label><label>Metode pembayaran<select value={form.payment} onChange={(event) => setForm({ ...form, payment: event.target.value })}><option>Transfer bank</option><option>QRIS</option><option>Tunai</option></select></label></div>
       <label>Catatan penjualan / keuangan<textarea rows="2" value={form.note} onChange={(event) => setForm({ ...form, note: event.target.value })} placeholder="Contoh: uang muka, alamat kirim, kesepakatan harga…" /></label>
       <div className="sale-calculation"><div><span>{quantity} × Rp {formatPrice(unitPrice)} · {selected?.category || 'Bibit lele'} {selected?.size}</span><b>Rp {formatPrice(subtotal)}</b></div><div><span>Diskon {form.discountType === 'Persen' ? `(${normalizedDiscountInput}%)` : ''}</span><b>− Rp {formatPrice(discount)}</b></div><div><span>Ongkos kirim</span><b>Rp {formatPrice(shippingFee)}</b></div><div className="sale-grand-total"><span>Total tagihan</span><b>Rp {formatPrice(total)}</b></div></div>
-      <button className="button button-dark full-button" type="submit">Simpan & buat invoice <Icon name="arrow" size={15} /></button>
+      {saveError && <div className="form-error" role="alert">{saveError}</div>}<button className="button button-dark full-button" type="submit" disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan & buat invoice'} {!saving && <Icon name="arrow" size={15} />}</button>
     </form></div></div>;
 }
 
@@ -372,8 +393,21 @@ function ExpenseModal({ onClose, onSave }) {
   const today = new Date();
   const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const [form, setForm] = useState({ description: '', category: 'Operasional', amount: '', date });
-  const submit = (event) => { event.preventDefault(); if (!form.description.trim() || Number(form.amount) <= 0) return; onSave({ ...form, id: `exp-${Date.now()}`, amount: Number(form.amount), description: form.description.trim() }); };
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="admin-dialog" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><Icon name="close" size={18} /></button><span className="page-overline">PENCATATAN BIAYA</span><h2>Tambah pengeluaran</h2><p>Catat biaya operasional agar laporan keuangan selalu akurat.</p><form className="admin-form" onSubmit={submit}><label>Deskripsi<input required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Contoh: pakan bibit" /></label><div className="form-row"><label>Kategori<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}><option>Operasional</option><option>Pengiriman</option><option>Perawatan</option><option>Perlengkapan</option><option>Lainnya</option></select></label><label>Tanggal<input required type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label></div><label>Jumlah (Rp)<input required min="1" type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" /></label><button className="button button-dark full-button" type="submit">Simpan pengeluaran <Icon name="arrow" size={15} /></button></form></div></div>;
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const submit = async (event) => {
+    event.preventDefault();
+    if (saving || !form.description.trim() || Number(form.amount) <= 0) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await onSave({ ...form, id: `exp-${Date.now()}`, amount: Number(form.amount), description: form.description.trim() });
+    } catch (error) {
+      setSaveError(error.message || 'Pengeluaran belum tersimpan. Coba lagi.');
+      setSaving(false);
+    }
+  };
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="admin-dialog" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}><Icon name="close" size={18} /></button><span className="page-overline">PENCATATAN BIAYA</span><h2>Tambah pengeluaran</h2><p>Catat biaya operasional agar laporan keuangan selalu akurat.</p><form className="admin-form" onSubmit={submit}><label>Deskripsi<input required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Contoh: pakan bibit" /></label><div className="form-row"><label>Kategori<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}><option>Operasional</option><option>Pengiriman</option><option>Perawatan</option><option>Perlengkapan</option><option>Lainnya</option></select></label><label>Tanggal<input required type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></label></div><label>Jumlah (Rp)<input required min="1" type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" /></label>{saveError && <div className="form-error" role="alert">{saveError}</div>}<button className="button button-dark full-button" type="submit" disabled={saving}>{saving ? 'Menyimpan…' : 'Simpan pengeluaran'} {!saving && <Icon name="arrow" size={15} />}</button></form></div></div>;
 }
 
 function InvoiceModal({ order, onClose }) {
@@ -421,10 +455,10 @@ function OverviewPage({ transactions, expenses, products, setActive, onInvoice, 
   const today = new Date();
   const todayLabel = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(today);
   const shortToday = new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(today);
-  return <><PageHeading eyebrow={todayLabel} title="Selamat pagi, admin." description="Ringkasan usaha lelepakabi hari ini." action={<div className="overview-heading-actions"><button className="button button-dark" onClick={onNewTransaction}><Icon name="plus" size={16} /> Catat penjualan</button><span className="date-chip"><Icon name="dashboard" size={15} /> {shortToday}</span></div>} /><div className="metrics-grid"><MetricCard icon="wallet" label="Pemasukan tercatat" value={`Rp ${formatShortPrice(revenue)}`} trend={`${transactions.length} transaksi`} accent="lime" /><MetricCard icon="package" label="Bibit dalam pesanan" value={formatPrice(unitsSold)} trend="ekor" accent="blue" /><MetricCard icon="list" label="Perlu ditindaklanjuti" value={String(pending)} trend="pesanan" accent="purple" /><MetricCard icon="chart" label="Pengeluaran" value={`Rp ${formatShortPrice(expenses.reduce((sum, item) => sum + Number(item.amount), 0))}`} trend={`${activeStock} kantong`} accent="orange" /></div><div className="overview-grid admin-overview-grid"><div className="dashboard-panel overview-panel"><div className="panel-head"><div><h3>Transaksi terbaru</h3><p>Pilih invoice untuk meninjau detail transaksi.</p></div><button className="text-button" onClick={() => setActive('transactions')}>Lihat semua <Icon name="arrow" size={14} /></button></div><TransactionTable transactions={transactions.slice(0, 3)} onStatusChange={null} onInvoice={onInvoice} /></div><div className="quick-admin-actions"><button onClick={() => setActive('stock')}><Icon name="package" size={19} /><span><b>Kelola stok</b><small>Atur jumlah dan status bibit</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('finance')}><Icon name="wallet" size={19} /><span><b>Lihat keuangan</b><small>Pemasukan dan estimasi laba</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('expenses')}><Icon name="chart" size={19} /><span><b>Catat pengeluaran</b><small>Perbarui biaya operasional</small></span><Icon name="arrow" size={15} /></button></div></div><InventoryAttention products={products} onManage={() => setActive('stock')} /></>;
+  return <><PageHeading eyebrow={todayLabel} title="Ringkasan" description="Kondisi penjualan, pembayaran, dan stok bibit hari ini." action={<div className="overview-heading-actions"><button className="button button-dark" onClick={onNewTransaction}><Icon name="plus" size={16} /> Catat penjualan</button><span className="date-chip"><Icon name="dashboard" size={15} /> {shortToday}</span></div>} /><div className="metrics-grid"><MetricCard icon="wallet" label="Pemasukan tercatat" value={`Rp ${formatShortPrice(revenue)}`} trend={`${transactions.length} transaksi`} accent="lime" /><MetricCard icon="package" label="Bibit dalam pesanan" value={formatPrice(unitsSold)} trend="ekor" accent="blue" /><MetricCard icon="list" label="Perlu ditindaklanjuti" value={String(pending)} trend="pesanan" accent="purple" /><MetricCard icon="chart" label="Pengeluaran" value={`Rp ${formatShortPrice(expenses.reduce((sum, item) => sum + Number(item.amount), 0))}`} trend={`${activeStock} kantong`} accent="orange" /></div><div className="overview-grid admin-overview-grid"><div className="dashboard-panel overview-panel"><div className="panel-head"><div><h3>Transaksi terbaru</h3><p>Pilih invoice untuk meninjau detail transaksi.</p></div><button className="text-button" onClick={() => setActive('transactions')}>Lihat semua <Icon name="arrow" size={14} /></button></div><TransactionTable transactions={transactions.slice(0, 3)} onStatusChange={null} onInvoice={onInvoice} /></div><div className="quick-admin-actions"><button onClick={() => setActive('stock')}><Icon name="package" size={19} /><span><b>Kelola stok</b><small>Atur jumlah dan status bibit</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('finance')}><Icon name="wallet" size={19} /><span><b>Lihat keuangan</b><small>Pemasukan dan estimasi laba</small></span><Icon name="arrow" size={15} /></button><button onClick={() => setActive('expenses')}><Icon name="chart" size={19} /><span><b>Catat pengeluaran</b><small>Perbarui biaya operasional</small></span><Icon name="arrow" size={15} /></button></div></div><InventoryAttention products={products} onManage={() => setActive('stock')} /></>;
 }
 
-function AdminDashboard({ products, onUpdateProducts, transactions, onUpdateTransactions, expenses, onUpdateExpenses, onLogout, onGoStore }) {
+function AdminDashboard({ products, onSaveProducts, transactions, onCreateSale, onUpdateSaleStatus, expenses, onCreateExpense, onDeleteExpense, onLogout, onGoStore }) {
   const [active, setActive] = useState('overview');
   const [pageHistory, setPageHistory] = useState([]);
   const navigate = (next) => { if (next === active) return; setPageHistory((history) => [...history, active]); setActive(next); };
@@ -436,25 +470,51 @@ function AdminDashboard({ products, onUpdateProducts, transactions, onUpdateTran
   const [toast, setToast] = useState('');
   useEffect(() => setDraftProducts(products), [products]);
   const notify = (message) => { setToast(message); window.setTimeout(() => setToast(''), 2600); };
-  const saveProducts = () => { onUpdateProducts(draftProducts); notify('Data stok dan katalog berhasil disimpan'); };
-  const addTransaction = (order) => {
-    onUpdateTransactions([order, ...transactions]);
+  const saveProducts = async () => {
+    try {
+      await onSaveProducts(draftProducts);
+      notify('Data stok dan katalog berhasil disimpan');
+    } catch (error) {
+      notify(`Gagal menyimpan: ${error.message}`);
+    }
+  };
+  // Errors are re-thrown so the open form can show them and stay open for correction.
+  const addTransaction = async (order) => {
+    await onCreateSale(order);
     setShowOrder(false);
     notify('Penjualan dicatat dan invoice siap diterbitkan');
   };
-  const updateStatus = (id, status) => {
-    onUpdateTransactions(transactions.map((item) => item.id === id ? { ...item, status } : item));
-    notify('Status transaksi diperbarui; stok tetap dikelola manual');
+  const updateStatus = async (id, status) => {
+    try {
+      await onUpdateSaleStatus(id, status);
+      notify('Status transaksi diperbarui; stok tetap dikelola manual');
+    } catch (error) {
+      notify(`Gagal memperbarui status: ${error.message}`);
+    }
   };
-  const addExpense = (expense) => { onUpdateExpenses([expense, ...expenses]); setShowExpense(false); notify('Pengeluaran berhasil dicatat'); };
+  const addExpense = async (expense) => {
+    await onCreateExpense(expense);
+    setShowExpense(false);
+    notify('Pengeluaran berhasil dicatat');
+  };
+  const removeExpense = async (id) => {
+    const expense = expenses.find((item) => item.id === id);
+    if (!expense || !window.confirm(`Hapus catatan pengeluaran “${expense.description}”?`)) return;
+    try {
+      await onDeleteExpense(id);
+      notify('Pengeluaran dihapus');
+    } catch (error) {
+      notify(`Gagal menghapus: ${error.message}`);
+    }
+  };
   const pageNames = { overview: 'Ringkasan', transactions: 'Transaksi', invoices: 'Invoice', finance: 'Keuangan', expenses: 'Pengeluaran', stock: 'Stok & katalog' };
   const pendingCount = transactions.filter((order) => ['Menunggu pembayaran', 'Dibayar'].includes(order.status)).length;
-  return <div className="admin-layout"><AdminSidebar active={active} setActive={navigate} onLogout={onLogout} onGoStore={onGoStore} pendingCount={pendingCount} /><main className="admin-main"><div className="admin-topbar"><div className="breadcrumb"><button className="breadcrumb-back" onClick={goBack} aria-label="Kembali ke menu sebelumnya"><Icon name="arrow" size={14} /><span>Kembali</span></button><Icon name="chevron" size={13} /><b>{pageNames[active]}</b></div><div className="admin-top-actions"><span className="public-status"><i></i> Toko online</span><button className="view-store" onClick={onGoStore}><Icon name="external" size={15} /> Lihat toko</button><div className="top-avatar">LP</div></div></div><div className="admin-content">
+  return <div className="admin-layout"><AdminSidebar active={active} setActive={navigate} onLogout={onLogout} onGoStore={onGoStore} pendingCount={pendingCount} /><main className="admin-main"><div className="admin-topbar"><div className="breadcrumb"><button className="breadcrumb-back" onClick={goBack} aria-label="Kembali ke menu sebelumnya"><Icon name="arrow" size={14} /><span>Kembali</span></button><Icon name="chevron" size={13} /><b>{pageNames[active]}</b></div><div className="admin-top-actions"><button className="view-store" onClick={onGoStore}><Icon name="external" size={15} /> Lihat toko</button><div className="top-avatar">LP</div></div></div><div className="admin-content">
     {active === 'overview' && <OverviewPage transactions={transactions} expenses={expenses} products={products} setActive={navigate} onInvoice={setInvoiceOrder} onNewTransaction={() => setShowOrder(true)} />}
     {active === 'transactions' && <TransactionsPage transactions={transactions} onStatusChange={updateStatus} onInvoice={setInvoiceOrder} onNew={() => setShowOrder(true)} />}
     {active === 'invoices' && <InvoicesPage transactions={transactions} onInvoice={setInvoiceOrder} />}
     {active === 'finance' && <FinancePage transactions={transactions} expenses={expenses} />}
-    {active === 'expenses' && <ExpensesPage expenses={expenses} onNew={() => setShowExpense(true)} onDelete={(id) => { const expense = expenses.find((item) => item.id === id); if (expense && window.confirm(`Hapus catatan pengeluaran “${expense.description}”?`)) { onUpdateExpenses(expenses.filter((item) => item.id !== id)); notify('Pengeluaran dihapus'); } }} />}
+    {active === 'expenses' && <ExpensesPage expenses={expenses} onNew={() => setShowExpense(true)} onDelete={removeExpense} />}
     {active === 'stock' && <><div className="stock-page-heading"><PageHeading eyebrow="INVENTARIS" title="Stok & katalog" description="Pantau stok bibit dan atur harga atau status yang tampil di toko." /><button className="button button-outline" onClick={() => setDraftProducts(products)}><Icon name="arrow" size={14} /> Batalkan perubahan</button></div><StockTable products={products} draftProducts={draftProducts} setDraftProducts={setDraftProducts} onSave={saveProducts} /><div className="stock-hint"><Icon name="help" size={15} /> Stok tidak berubah otomatis dari transaksi; sesuaikan manual di inventaris setelah pesanan WA terkonfirmasi.</div></>}
   </div>{toast && <div className="save-toast"><Icon name="checkCircle" size={18} /> {toast}</div>}
     {showOrder && <OrderModal products={products} onClose={() => setShowOrder(false)} onSave={addTransaction} />}{showExpense && <ExpenseModal onClose={() => setShowExpense(false)} onSave={addExpense} />}{invoiceOrder && <InvoiceModal order={invoiceOrder} onClose={() => setInvoiceOrder(null)} />}
@@ -490,18 +550,48 @@ function getInitialRoute() {
   return currentUrl.pathname;
 }
 
+function normalizeDemoProduct(product, index) {
+  const merged = { ...DEFAULT_PRODUCTS[index], ...product, stock: Number(product.stock ?? DEFAULT_PRODUCTS[index]?.stock ?? 0) };
+  return { ...merged, category: merged.category || DEFAULT_PRODUCTS[index]?.category || 'Bibit lele', status: merged.status === 'Habis' ? 'Tidak tersedia' : merged.status };
+}
+
 function App() {
   const [routePath, setRoutePath] = useState(getInitialRoute);
-  const [adminSession, setAdminSession] = useState(() => localStorage.getItem(ADMIN_SESSION_KEY) === 'active');
-  const [products, setProducts] = useState(() => readStored('lelepakabi-products', DEFAULT_PRODUCTS).map((product, index) => {
-    const merged = { ...DEFAULT_PRODUCTS[index], ...product, stock: Number(product.stock ?? DEFAULT_PRODUCTS[index]?.stock ?? 0) };
-    return { ...merged, category: merged.category || DEFAULT_PRODUCTS[index]?.category || 'Bibit lele', status: merged.status === 'Habis' ? 'Tidak tersedia' : merged.status };
-  }));
-  const [transactions, setTransactions] = useState(() => readStored('lelepakabi-transactions', DEFAULT_TRANSACTIONS));
-  const [expenses, setExpenses] = useState(() => readStored('lelepakabi-expenses', DEFAULT_EXPENSES));
-  useEffect(() => { localStorage.setItem('lelepakabi-products', JSON.stringify(products)); }, [products]);
-  useEffect(() => { localStorage.setItem('lelepakabi-transactions', JSON.stringify(transactions)); }, [transactions]);
-  useEffect(() => { localStorage.setItem('lelepakabi-expenses', JSON.stringify(expenses)); }, [expenses]);
+  const [adminSession, setAdminSession] = useState(() => (DEMO_MODE ? localStorage.getItem(ADMIN_SESSION_KEY) === 'active' : false));
+  const [sessionChecked, setSessionChecked] = useState(DEMO_MODE);
+  const [catalogStatus, setCatalogStatus] = useState(DEMO_MODE ? 'ready' : 'loading');
+  const [products, setProducts] = useState(() => (DEMO_MODE ? readStored('lelepakabi-products', DEFAULT_PRODUCTS).map(normalizeDemoProduct) : []));
+  const [transactions, setTransactions] = useState(() => (DEMO_MODE ? readStored('lelepakabi-transactions', DEFAULT_TRANSACTIONS) : []));
+  const [expenses, setExpenses] = useState(() => (DEMO_MODE ? readStored('lelepakabi-expenses', DEFAULT_EXPENSES) : []));
+
+  // Demo mode (GitHub Pages) keeps everything in this browser. Otherwise the Cloudflare API is the source of truth.
+  useEffect(() => { if (DEMO_MODE) localStorage.setItem('lelepakabi-products', JSON.stringify(products)); }, [products]);
+  useEffect(() => { if (DEMO_MODE) localStorage.setItem('lelepakabi-transactions', JSON.stringify(transactions)); }, [transactions]);
+  useEffect(() => { if (DEMO_MODE) localStorage.setItem('lelepakabi-expenses', JSON.stringify(expenses)); }, [expenses]);
+
+  useEffect(() => {
+    if (DEMO_MODE) return;
+    api.catalog()
+      .then((list) => { setProducts(list); setCatalogStatus('ready'); })
+      .catch(() => setCatalogStatus('error'));
+    api.session()
+      .then((data) => setAdminSession(Boolean(data.authenticated)))
+      .catch(() => setAdminSession(false))
+      .finally(() => setSessionChecked(true));
+  }, []);
+
+  useEffect(() => {
+    if (DEMO_MODE || !adminSession) return;
+    api.adminData()
+      .then((data) => {
+        setProducts(data.products);
+        setTransactions(data.transactions);
+        setExpenses(data.expenses);
+        setCatalogStatus('ready');
+      })
+      .catch((error) => { if (error.status === 401) setAdminSession(false); });
+  }, [adminSession]);
+
   useEffect(() => {
     const handlePopState = () => setRoutePath(window.location.pathname);
     window.addEventListener('popstate', handlePopState);
@@ -516,24 +606,60 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const goToStore = () => navigate(siteBase ? `${siteBase}/` : '/');
-  const login = () => {
-    localStorage.setItem(ADMIN_SESSION_KEY, 'active');
+
+  const login = async (password) => {
+    if (DEMO_MODE) {
+      if (password !== DEMO_PASSWORD) throw new Error('Kata sandi belum tepat. Coba lagi.');
+      localStorage.setItem(ADMIN_SESSION_KEY, 'active');
+    } else {
+      await api.login(password);
+    }
     setAdminSession(true);
   };
-  const logout = () => {
-    localStorage.removeItem(ADMIN_SESSION_KEY);
+  const logout = async () => {
+    if (DEMO_MODE) localStorage.removeItem(ADMIN_SESSION_KEY);
+    else await api.logout().catch(() => {});
     setAdminSession(false);
+    setTransactions(DEMO_MODE ? transactions : []);
+    setExpenses(DEMO_MODE ? expenses : []);
     goToStore();
   };
+
+  // Mutations. Each resolves only after the server confirms (or immediately in demo mode).
+  // Sales are never written to inventory: the products table is only changed by saveProducts.
+  const saveProducts = async (draft) => {
+    if (DEMO_MODE) { setProducts(draft); return; }
+    setProducts(await api.saveProducts(draft));
+  };
+  const createSale = async (order) => {
+    if (DEMO_MODE) { setTransactions((previous) => [order, ...previous]); return; }
+    const saved = await api.createSale(order);
+    setTransactions((previous) => [saved, ...previous]);
+  };
+  const updateSaleStatus = async (id, status) => {
+    if (!DEMO_MODE) await api.updateSaleStatus(id, status);
+    setTransactions((previous) => previous.map((item) => (item.id === id ? { ...item, status } : item)));
+  };
+  const createExpense = async (expense) => {
+    if (DEMO_MODE) { setExpenses((previous) => [expense, ...previous]); return; }
+    const saved = await api.createExpense(expense);
+    setExpenses((previous) => [saved, ...previous]);
+  };
+  const deleteExpense = async (id) => {
+    if (!DEMO_MODE) await api.deleteExpense(id);
+    setExpenses((previous) => previous.filter((item) => item.id !== id));
+  };
+
   const order = (product) => window.open(`${STORE_WA_URL}?text=${encodeURIComponent(`Halo lelepakabi, saya ingin pesan bibit lele ukuran ${product.size}. Mohon info ketersediaan dan pengirimannya ya.`)}`, '_blank', 'noopener,noreferrer');
 
   if (isAdminRoute) {
+    if (!sessionChecked) return <div className="admin-loading">Memeriksa sesi…</div>;
     return adminSession
-      ? <AdminDashboard products={products} onUpdateProducts={setProducts} transactions={transactions} onUpdateTransactions={setTransactions} expenses={expenses} onUpdateExpenses={setExpenses} onLogout={logout} onGoStore={goToStore} />
+      ? <AdminDashboard products={products} onSaveProducts={saveProducts} transactions={transactions} onCreateSale={createSale} onUpdateSaleStatus={updateSaleStatus} expenses={expenses} onCreateExpense={createExpense} onDeleteExpense={deleteExpense} onLogout={logout} onGoStore={goToStore} />
       : <AdminLoginPage onLogin={login} onBack={goToStore} />;
   }
 
-  return <div className="storefront"><Header /><main><Hero /><Catalog products={products} onOrder={order} /><LocationSection /><Story /><HowToOrder /></main><Footer /></div>;
+  return <div className="storefront"><Header /><main><Hero products={products} status={catalogStatus} /><FactsStrip /><Catalog products={products} status={catalogStatus} onOrder={order} /><HowToOrder /><LocationSection /></main><Footer /></div>;
 }
 
 createRoot(document.getElementById('root')).render(<App />);
