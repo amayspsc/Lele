@@ -8,16 +8,17 @@ Lokasi usaha: Jl. Kali Buaran, RT.10/RW.7, Penggilingan, Kec. Cakung, Kota Jakar
 
 - **Frontend**: React + Vite (`src/`), dibangun ke `dist/`.
 - **Backend**: Cloudflare Worker (`worker/index.js`) dengan endpoint JSON di `/api/*`. Static assets disajikan oleh Workers Static Assets; route SPA `/adminlele` dilayani `index.html`.
-- **Database**: Cloudflare D1 (SQLite). Skema di `migrations/`:
-  - `0001_init.sql`: tabel `products`, `transactions`, `expenses`.
-  - `0002_seed_catalog.sql`: katalog awal saja. Tidak ada data transaksi atau pengeluaran contoh.
+- **Database**: Cloudflare D1 (SQLite). Skema di `migrations/`. Data admin disimpan sebagai empat koleksi JSON di tabel `collections` (`products`, `transactions`, `expenses`, `movements`), dengan bentuk yang sama seperti yang dipakai dashboard. `0003_collections.sql` menggantikan tabel lama dari `0001`/`0002`.
 - **Autentikasi admin**: kata sandi dicek di server (secret `ADMIN_PASSWORD`). Sesi berupa cookie `HttpOnly` yang ditandatangani HMAC dan bertahan 30 hari di browser.
+- **Katalog publik**: `GET /api/catalog` hanya mengirim id, ukuran, harga, status, catatan, dan tanda populer. HPP dan stok tidak pernah dikirim ke storefront.
+- **Mode demo** (`VITE_DEMO_MODE=true`, dipakai di GitHub Pages dan tes): semua data disimpan di localStorage browser, tanpa Worker.
 
 ## Aturan bisnis
 
-- Penjualan dicatat manual oleh admin. Harga per kantong diambil dari katalog **di server**, lalu dihitung `jumlah × harga − diskon + ongkir`. Diskon nominal atau persen tidak bisa melebihi subtotal.
-- **Stok tidak berubah otomatis.** Membuat transaksi maupun mengubah statusnya (termasuk **Selesai**) tidak menyentuh tabel `products`. Stok hanya diubah lewat **Stok & katalog**.
+- Penjualan dicatat manual oleh admin lewat tombol **Catat penjualan**. Harga per kantong diambil otomatis dari katalog, lalu total = subtotal − diskon + ongkir. Invoice dibuat otomatis.
+- **Stok tidak berubah otomatis.** Membuat transaksi maupun mengubah statusnya (termasuk **Selesai**) tidak menulis mutasi stok. Stok hanya berubah lewat **mutasi** Masuk / Keluar / Penyesuaian di menu **Stok**. "Dipesan" ditampilkan sebagai info dan tidak mengurangi stok siap jual.
 - Semua tautan WhatsApp pelanggan memakai `6282123040643`.
+- Catatan: penyimpanan koleksi adalah tulis-ulang seluruh koleksi. Jika dua perangkat admin menyimpan bersamaan, perubahan terakhir yang menang. Batas satu koleksi sekitar 900 KB.
 
 ## Menjalankan secara lokal (Cloudflare)
 

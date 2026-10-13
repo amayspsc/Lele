@@ -1,14 +1,17 @@
 // Cloudflare Worker: JSON API for the lelepakabi storefront and admin dashboard.
 // Static files (the Vite build in ./dist) are served by Workers Static Assets; this
 // file only handles /api/* (see wrangler.jsonc → assets.run_worker_first).
+//
+// Data model: the admin app keeps four collections (products, transactions, expenses,
+// movements). Each one is stored as a JSON document in the D1 `collections` table, the same
+// shape the browser uses. Inventory is only changed by explicit movement entries. Creating or
+// updating a sale never writes to movements.
 
 const SESSION_COOKIE = 'lelepakabi_admin';
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days, persisted in the browser
-const LOW_STOCK_THRESHOLD = 10;
-const STOCK_STATUSES = ['Tersedia', 'Stok menipis', 'Pre-order', 'Tidak tersedia'];
-const TRANSACTION_STATUSES = ['Menunggu pembayaran', 'Dibayar', 'Diproses', 'Dikirim', 'Selesai', 'Dibatalkan'];
-const PAYMENT_METHODS = ['Transfer bank', 'QRIS', 'Tunai'];
-const EXPENSE_CATEGORIES = ['Operasional', 'Pengiriman', 'Perawatan', 'Perlengkapan', 'Lainnya'];
+const COLLECTIONS = ['products', 'transactions', 'expenses', 'movements'];
+const MAX_COLLECTION_BYTES = 900_000; // D1 row limit is ~1 MB; keep headroom
+const MAX_ITEMS = 5000;
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' };
 
 class HttpError extends Error {
@@ -40,7 +43,7 @@ async function route(request, env, url) {
   if (!pathname.startsWith('/api/')) throw new HttpError(404, 'Tidak ditemukan.');
 
   if (method === 'GET' && pathname === '/api/health') return json({ ok: true });
-  if (method === 'GET' && pathname === '/api/catalog') return json({ products: await listProducts(env.DB) });
+  if (method === 'GET' && pathname === '/api/catalog') return json({ products: await publicCatalog(env.DB) });
 
   if (method === 'POST' && pathname === '/api/admin/login') return login(request, env, url);
   if (method === 'POST' && pathname === '/api/admin/logout') return logout(url);
@@ -51,26 +54,10 @@ async function route(request, env, url) {
   // Everything below requires a valid admin session cookie.
   if (pathname.startsWith('/api/admin/')) await requireAdmin(request, env);
 
-  if (method === 'GET' && pathname === '/api/admin/data') {
-    const [products, transactions, expenses] = await Promise.all([
-      listProducts(env.DB),
-      listTransactions(env.DB),
-      listExpenses(env.DB),
-    ]);
-    return json({ products, transactions, expenses });
-  }
+  if (method === 'GET' && pathname === '/api/admin/data') return json(await loadAllCollections(env.DB));
 
-  if (method === 'PUT' && pathname === '/api/admin/products') return saveProducts(request, env);
-
-  if (method === 'POST' && pathname === '/api/admin/transactions') return createTransaction(request, env);
-
-  const transactionMatch = pathname.match(/^\/api\/admin\/transactions\/([^/]+)$/);
-  if (method === 'PATCH' && transactionMatch) return updateTransactionStatus(request, env, decodeURIComponent(transactionMatch[1]));
-
-  if (method === 'POST' && pathname === '/api/admin/expenses') return createExpense(request, env);
-
-  const expenseMatch = pathname.match(/^\/api\/admin\/expenses\/([^/]+)$/);
-  if (method === 'DELETE' && expenseMatch) return deleteExpense(env, decodeURIComponent(expenseMatch[1]));
+  const collectionMatch = pathname.match(/^\/api\/admin\/data\/([a-z]+)$/);
+  if (method === 'PUT' && collectionMatch) return saveCollection(request, env, collectionMatch[1]);
 
   throw new HttpError(404, 'Endpoint tidak ditemukan.');
 }
@@ -91,46 +78,6 @@ async function readJson(request) {
   } catch {
     throw badRequest('Data permintaan tidak valid.');
   }
-}
-
-function cleanText(value, max, label, { required = false } = {}) {
-  const text = String(value ?? '').trim().replace(/\s+/g, ' ');
-  if (required && !text) throw badRequest(`${label} wajib diisi.`);
-  if (text.length > max) throw badRequest(`${label} maksimal ${max} karakter.`);
-  return text;
-}
-
-function toInteger(value, label, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
-  const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
-  if (typeof number !== 'number' || !Number.isInteger(number)) throw badRequest(`${label} harus berupa bilangan bulat.`);
-  if (number < min || number > max) throw badRequest(`${label} harus di antara ${min} dan ${max}.`);
-  return number;
-}
-
-function isDateString(value) {
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-// Today's date in Jakarta, regardless of where the Worker runs.
-function todayInJakarta() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-}
-
-// ---------- Stock rules (mirrors the admin UI) ----------
-
-function resolveStockStatus(status, stock) {
-  const saved = status === 'Habis' ? 'Tidak tersedia' : status;
-  if (saved === 'Tersedia') {
-    if (stock <= 0) return 'Tidak tersedia';
-    return stock <= LOW_STOCK_THRESHOLD ? 'Stok menipis' : 'Tersedia';
-  }
-  if (saved === 'Stok menipis') {
-    if (stock <= 0) return 'Tidak tersedia';
-    return stock > LOW_STOCK_THRESHOLD ? 'Tersedia' : 'Stok menipis';
-  }
-  return STOCK_STATUSES.includes(saved) ? saved : 'Tersedia';
 }
 
 // ---------- Auth ----------
@@ -206,197 +153,53 @@ function logout(url) {
   return json({ authenticated: false }, 200, { 'set-cookie': sessionCookie('', url, 0) });
 }
 
-// ---------- Catalog ----------
+// ---------- Collections (admin data) ----------
 
-function mapProduct(row) {
-  return {
-    id: row.id,
-    size: row.size,
-    category: row.category,
-    price: row.price,
-    status: row.status,
-    stock: row.stock,
-    note: row.note,
-    accent: row.accent,
-    popular: Boolean(row.popular),
-  };
+async function readCollection(db, name) {
+  const row = await db.prepare('SELECT data FROM collections WHERE name = ?').bind(name).first();
+  return row ? JSON.parse(row.data) : null;
 }
 
-async function listProducts(db) {
-  const { results } = await db.prepare('SELECT * FROM products ORDER BY sort_order, id').all();
-  return results.map(mapProduct);
+async function loadAllCollections(db) {
+  const entries = await Promise.all(COLLECTIONS.map(async (name) => [name, await readCollection(db, name)]));
+  return Object.fromEntries(entries);
 }
 
-async function saveProducts(request, env) {
-  const body = await readJson(request);
-  if (!Array.isArray(body.products) || body.products.length === 0) throw badRequest('Daftar produk tidak valid.');
-  if (body.products.length > 200) throw badRequest('Terlalu banyak produk dalam satu permintaan.');
-
-  const statements = body.products.map((item, index) => {
-    const id = toInteger(item.id, 'ID produk', { min: 1 });
-    const stock = toInteger(item.stock ?? 0, `Stok ${item.size || id}`, { min: 0, max: 1000000 });
-    const price = toInteger(item.price ?? 0, `Harga ${item.size || id}`, { min: 0, max: 100000000 });
-    const status = resolveStockStatus(String(item.status ?? ''), stock);
-    return env.DB.prepare(
-      `INSERT INTO products (id, size, category, price, status, stock, note, accent, popular, sort_order, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-       ON CONFLICT(id) DO UPDATE SET
-         size = excluded.size, category = excluded.category, price = excluded.price,
-         status = excluded.status, stock = excluded.stock, note = excluded.note,
-         accent = excluded.accent, popular = excluded.popular, sort_order = excluded.sort_order,
-         updated_at = excluded.updated_at`,
-    ).bind(
-      id,
-      cleanText(item.size, 40, 'Ukuran', { required: true }),
-      cleanText(item.category, 60, 'Kategori', { required: true }),
-      price,
-      status,
-      stock,
-      cleanText(item.note, 160, 'Catatan'),
-      ['mint', 'orange', 'blue', 'violet', 'lime'].includes(item.accent) ? item.accent : 'mint',
-      item.popular ? 1 : 0,
-      index + 1,
-    );
-  });
-
-  // D1 runs a batch as one transaction: either every product saves or none does.
-  await env.DB.batch(statements);
-  return json({ products: await listProducts(env.DB) });
+// The storefront never receives internal fields such as cost (HPP), minimum stock, or sales counts.
+async function publicCatalog(db) {
+  const products = await readCollection(db, 'products');
+  if (!Array.isArray(products)) return null;
+  return products.map((p) => ({
+    id: p.id,
+    size: p.size,
+    price: p.price,
+    status: p.status,
+    note: p.note || '',
+    accent: p.accent || 'mint',
+    popular: Boolean(p.popular),
+  }));
 }
 
-// ---------- Transactions (manual WhatsApp sales) ----------
-
-function mapTransaction(row) {
-  return {
-    id: row.id,
-    invoice: row.invoice,
-    date: row.date,
-    customer: row.customer,
-    phone: row.phone,
-    size: row.size,
-    category: row.category,
-    quantity: row.quantity,
-    unitPrice: row.unit_price,
-    subtotal: row.subtotal,
-    discount: row.discount,
-    discountType: row.discount_type,
-    discountValue: row.discount_value,
-    shippingFee: row.shipping_fee,
-    total: row.total,
-    note: row.note,
-    status: row.status,
-    payment: row.payment,
-  };
-}
-
-async function listTransactions(db) {
-  const { results } = await db.prepare('SELECT * FROM transactions ORDER BY date DESC, created_at DESC').all();
-  return results.map(mapTransaction);
-}
-
-async function getTransaction(db, id) {
-  const row = await db.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first();
-  return row ? mapTransaction(row) : null;
-}
-
-async function createTransaction(request, env) {
-  const body = await readJson(request);
-  const customer = cleanText(body.customer, 120, 'Nama pelanggan', { required: true });
-  const phone = cleanText(body.phone, 30, 'Nomor WhatsApp', { required: true });
-  const size = cleanText(body.size, 40, 'Ukuran', { required: true });
-  const quantity = toInteger(body.quantity, 'Jumlah kantong', { min: 1, max: 100000 });
-  const date = body.date ? String(body.date) : todayInJakarta();
-  if (!isDateString(date)) throw badRequest('Tanggal tidak valid.');
-
-  const status = String(body.status ?? 'Menunggu pembayaran');
-  if (!TRANSACTION_STATUSES.includes(status)) throw badRequest('Status pembayaran tidak valid.');
-  const payment = String(body.payment ?? 'Transfer bank');
-  if (!PAYMENT_METHODS.includes(payment)) throw badRequest('Metode pembayaran tidak valid.');
-
-  // Product and price come from the catalog, never from the browser.
-  const product = await env.DB.prepare('SELECT * FROM products WHERE size = ?').bind(size).first();
-  if (!product) throw badRequest('Ukuran bibit tidak ditemukan di katalog.');
-
-  const unitPrice = product.price;
-  const subtotal = quantity * unitPrice;
-  const discountType = body.discountType === 'Persen' ? 'Persen' : 'Nominal';
-  const discountValue = toInteger(body.discountValue ?? 0, 'Nilai diskon', {
-    min: 0,
-    max: discountType === 'Persen' ? 100 : Number.MAX_SAFE_INTEGER,
-  });
-  // Discount can never exceed the product subtotal.
-  const discount = Math.min(subtotal, discountType === 'Persen' ? Math.round((subtotal * discountValue) / 100) : discountValue);
-  const shippingFee = toInteger(body.shippingFee ?? 0, 'Ongkos kirim', { min: 0, max: 100000000 });
-  const total = subtotal - discount + shippingFee;
-  const note = cleanText(body.note, 1000, 'Catatan');
-  const year = date.slice(0, 4);
-
-  // Invoice numbers are sequential per year. If two sales race for the same number, the
-  // UNIQUE constraint rejects one and we retry with the next number.
-  const countRow = await env.DB.prepare('SELECT COUNT(*) AS total FROM transactions WHERE invoice LIKE ?')
-    .bind(`INV/LP/${year}/%`)
-    .first();
-  const baseCount = Number(countRow?.total ?? 0);
-
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const invoice = `INV/LP/${year}/${String(baseCount + 1 + attempt).padStart(3, '0')}`;
-    const id = `trx-${crypto.randomUUID()}`;
-    try {
-      // Note: this inserts the sale only. It does not touch the products table, so inventory
-      // stays exactly as the admin set it.
-      await env.DB.prepare(
-        `INSERT INTO transactions (id, invoice, date, customer, phone, size, category, quantity, unit_price, subtotal,
-           discount_type, discount_value, discount, shipping_fee, total, status, payment, note)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).bind(
-        id, invoice, date, customer, phone, product.size, product.category, quantity, unitPrice, subtotal,
-        discountType, discountValue, discount, shippingFee, total, status, payment, note,
-      ).run();
-      return json({ transaction: await getTransaction(env.DB, id) }, 201);
-    } catch (error) {
-      if (!String(error?.message || error).includes('UNIQUE')) throw error;
-    }
+function validateItems(name, items) {
+  if (!Array.isArray(items)) throw badRequest('Data harus berupa daftar.');
+  if (items.length > MAX_ITEMS) throw badRequest(`Terlalu banyak data (maks. ${MAX_ITEMS}).`);
+  for (const item of items) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) throw badRequest(`Data ${name} tidak valid.`);
+    if (!(typeof item.id === 'string' || typeof item.id === 'number')) throw badRequest(`Setiap data ${name} membutuhkan id.`);
   }
-  throw new HttpError(409, 'Nomor invoice bentrok. Coba simpan ulang.');
 }
 
-async function updateTransactionStatus(request, env, id) {
+async function saveCollection(request, env, name) {
+  if (!COLLECTIONS.includes(name)) throw new HttpError(404, 'Koleksi tidak dikenal.');
   const body = await readJson(request);
-  const status = String(body.status ?? '');
-  if (!TRANSACTION_STATUSES.includes(status)) throw badRequest('Status transaksi tidak valid.');
-  const result = await env.DB.prepare('UPDATE transactions SET status = ? WHERE id = ?').bind(status, id).run();
-  if (!result.meta?.changes) throw new HttpError(404, 'Transaksi tidak ditemukan.');
-  return json({ transaction: await getTransaction(env.DB, id) });
-}
-
-// ---------- Expenses ----------
-
-function mapExpense(row) {
-  return { id: row.id, date: row.date, description: row.description, category: row.category, amount: row.amount };
-}
-
-async function listExpenses(db) {
-  const { results } = await db.prepare('SELECT * FROM expenses ORDER BY date DESC, created_at DESC').all();
-  return results.map(mapExpense);
-}
-
-async function createExpense(request, env) {
-  const body = await readJson(request);
-  const date = body.date ? String(body.date) : todayInJakarta();
-  if (!isDateString(date)) throw badRequest('Tanggal tidak valid.');
-  const description = cleanText(body.description, 160, 'Deskripsi', { required: true });
-  const category = EXPENSE_CATEGORIES.includes(body.category) ? body.category : 'Lainnya';
-  const amount = toInteger(body.amount, 'Jumlah pengeluaran', { min: 1, max: 100000000000 });
-  const id = `exp-${crypto.randomUUID()}`;
-  await env.DB.prepare('INSERT INTO expenses (id, date, description, category, amount) VALUES (?, ?, ?, ?, ?)')
-    .bind(id, date, description, category, amount)
-    .run();
-  const row = await env.DB.prepare('SELECT * FROM expenses WHERE id = ?').bind(id).first();
-  return json({ expense: mapExpense(row) }, 201);
-}
-
-async function deleteExpense(env, id) {
-  const result = await env.DB.prepare('DELETE FROM expenses WHERE id = ?').bind(id).run();
-  if (!result.meta?.changes) throw new HttpError(404, 'Pengeluaran tidak ditemukan.');
-  return json({ deleted: true });
+  validateItems(name, body.data);
+  const data = JSON.stringify(body.data);
+  if (data.length > MAX_COLLECTION_BYTES) {
+    throw new HttpError(413, 'Data terlalu besar untuk disimpan. Hubungi pengembang untuk memindahkan arsip lama.');
+  }
+  await env.DB.prepare(
+    `INSERT INTO collections (name, data, updated_at) VALUES (?, ?, datetime('now'))
+     ON CONFLICT(name) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
+  ).bind(name, data).run();
+  return json({ ok: true, count: body.data.length });
 }

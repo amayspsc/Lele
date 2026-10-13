@@ -1,5 +1,8 @@
 // Thin client for the Cloudflare Worker API (see worker/index.js).
-// All paths are relative so the same build works on the Worker, locally, or behind a proxy.
+// Paths are relative so the same build works on the Worker, locally, or behind a proxy.
+
+// Demo mode (GitHub Pages, tests) keeps everything in the browser instead of calling the Worker.
+export const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.MODE === 'test';
 
 async function request(path, { method = 'GET', body } = {}) {
   const response = await fetch(`/api${path}`, {
@@ -28,9 +31,25 @@ export const api = {
   login: (password) => request('/admin/login', { method: 'POST', body: { password } }),
   logout: () => request('/admin/logout', { method: 'POST', body: {} }),
   adminData: () => request('/admin/data'),
-  saveProducts: (products) => request('/admin/products', { method: 'PUT', body: { products } }).then((data) => data.products),
-  createSale: (sale) => request('/admin/transactions', { method: 'POST', body: sale }).then((data) => data.transaction),
-  updateSaleStatus: (id, status) => request(`/admin/transactions/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status } }).then((data) => data.transaction),
-  createExpense: (expense) => request('/admin/expenses', { method: 'POST', body: expense }).then((data) => data.expense),
-  deleteExpense: (id) => request(`/admin/expenses/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  saveCollection: (name, data) => request(`/admin/data/${name}`, { method: 'PUT', body: { data } }),
 };
+
+// Saves are serialised per collection so a slow earlier write can never overwrite a newer one.
+const queues = {};
+const SYNC_EVENT = 'lelepakabi:sync';
+
+export function saveCollection(name, data) {
+  const run = () => api.saveCollection(name, data);
+  const next = (queues[name] || Promise.resolve()).then(run, run);
+  queues[name] = next;
+  next.then(
+    () => window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: { name, ok: true } })),
+    (error) => {
+      console.error(`Gagal menyimpan ${name}`, error);
+      window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: { name, ok: false, message: error.message } }));
+    },
+  );
+  return next;
+}
+
+export const SYNC_EVENT_NAME = SYNC_EVENT;
